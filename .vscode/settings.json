@@ -1,0 +1,13 @@
+{
+	"files.eol": "\n",
+	"editor.detectIndentation": false,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 8,
+	"files.associations": {
+		"string_view": "cpp",
+		"iostream": "cpp",
+		"functional": "cpp"
+	},
+	"files.insertFinalNewline": true,
+	"files.trimFinalNewlines": true
+}

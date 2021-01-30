@@ -40,6 +40,7 @@ int main() {
 	BufferedSerial computer(USBTX, USBRX, 9600);
 
 	BufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN, 115200);
+	vesc1_uart.set_blocking(false);
 	VescDriver vesc_generator(fdopen(&vesc1_uart, "r+b"));
 
 	BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 115200);

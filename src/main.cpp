@@ -59,20 +59,24 @@ int main() {
 			char letter{};
 			computer.read(&letter, 1);
 
-			if (letter == 'q' && current < 5.f) {
+			switch (letter) {
+			case 'q':
 				current += .1f;
-			}
-
-			if (letter == 'a' && current > .0f) {
+				current = current > 5.f ? 5.f : current;
+				break;
+			case 'a':
 				current -= .1f;
-			}
-
-			if (letter == 'v') {
+				current = current < 0.f ? 0.f : current;
+				break;
+			case 's':
+				current = 0.f;
+				break;
+			case 'v':
 				vesc_generator.requestFirmwareVersion();
-			}
-
-			if (letter == 't') {
+				break;
+			case 't':
 				vesc_generator.requestValues();
+				break;
 			}
 
 			printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());

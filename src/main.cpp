@@ -19,13 +19,19 @@
 
 #include "VescDriver.hpp"
 
+static constexpr int UPDATE_FREQUENCY_HZ{10};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
 static constexpr PinName VESC2_TX_PIN{PB_6};
 static constexpr PinName VESC2_RX_PIN{PB_7};
 static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
 
-static constexpr int UPDATE_FREQUENCY_HZ{10};
+// Hardware initalization
+static DigitalOut led(LED1);
+static BufferedSerial computer(USBTX, USBRX, 9600);
+static BufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN, 115200);
+static BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 115200);
+
 volatile bool is_pedal_interrupt_to_handle{false};
 
 void pedal_interrupt_callback()
@@ -33,17 +39,10 @@ void pedal_interrupt_callback()
 	is_pedal_interrupt_to_handle = true;
 }
 
-int main() {
-	// Hardware initalization
-	DigitalOut led(LED1);
-
-	BufferedSerial computer(USBTX, USBRX, 9600);
-
-	BufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN, 115200);
+int main()
+{
 	vesc1_uart.set_blocking(false);
 	VescDriver vesc_generator(fdopen(&vesc1_uart, "r+b"));
-
-	BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 115200);
 	VescDriver vesc_motor(fdopen(&vesc2_uart, "r+b"));
 
 	InterruptIn pedal_interrupt(PEDAL_INTERRUPT_PIN);

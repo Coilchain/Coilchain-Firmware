@@ -28,7 +28,7 @@ static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
 static constexpr int UPDATE_FREQUENCY_HZ{10};
 volatile bool is_pedal_interrupt_to_handle{false};
 
-void pedal_interrup_callback()
+void pedal_interrupt_callback()
 {
 	is_pedal_interrupt_to_handle = true;
 }
@@ -46,7 +46,7 @@ int main() {
 	VescDriver vesc_motor(fdopen(&vesc2_uart, "r+b"));
 
 	InterruptIn pedal_interrupt(PEDAL_INTERRUPT_PIN);
-	pedal_interrupt.fall(&pedal_interrup_callback);
+	pedal_interrupt.fall(&pedal_interrupt_callback);
 
 	// Application start
 	printf("Coilchain v0.1\n");

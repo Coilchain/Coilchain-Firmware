@@ -17,6 +17,8 @@
 
 #include <mbed.h>
 
+#include "VescDriver.hpp"
+
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
 static constexpr PinName VESC2_TX_PIN{PB_6};
@@ -35,14 +37,13 @@ int main() {
 	// Hardware initalization
 	DigitalOut led(LED1);
 
-	UnbufferedSerial computer(USBTX, USBRX);
-	computer.baud(9600);
+	BufferedSerial computer(USBTX, USBRX, 9600);
 
-	UnbufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN);
-	vesc1_uart.baud(115200);
+	BufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN, 115200);
+	VescDriver vesc_generator(fdopen(&vesc1_uart, "r+b"));
 
-	UnbufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN);
-	vesc2_uart.baud(115200);
+	BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 115200);
+	VescDriver vesc_motor(fdopen(&vesc2_uart, "r+b"));
 
 	InterruptIn pedal_interrupt(PEDAL_INTERRUPT_PIN);
 	pedal_interrupt.fall(&pedal_interrup_callback);
@@ -66,7 +67,22 @@ int main() {
 				current -= .1f;
 			}
 
+			if (letter == 'v') {
+				vesc_generator.requestFirmwareVersion();
+			}
+
+			if (letter == 't') {
+				vesc_generator.requestValues();
+			}
+
+			printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());
 			printf("Current: %.3f\n", current);
+		}
+
+		vesc_generator.commandCurrent(current);
+
+		while (vesc1_uart.readable()) {
+			vesc_generator.processInput();
 		}
 
 		// Handle pedal interrupt

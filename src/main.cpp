@@ -86,7 +86,10 @@ int main()
 		vesc_generator.commandCurrent(current);
 
 		while (vesc1_uart.readable()) {
-			vesc_generator.processInput();
+			uint8_t byte;
+			if (vesc1_uart.read(&byte, 1)) {
+				vesc_generator.parseInputByte(byte);
+			}
 		}
 
 		// Handle pedal interrupt

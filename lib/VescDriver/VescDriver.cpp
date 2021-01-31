@@ -45,17 +45,6 @@ void VescDriver::requestValues()
 	sendPacket(&command, 1);
 }
 
-void VescDriver::processInput()
-{
-	size_t length_to_read{1};
-	uint8_t buffer_input[length_to_read];
-	size_t length_read = read(buffer_input, length_to_read);
-	//printf("length read: %d\n", length_read);
-	for (size_t i = 0; i < length_read; i++) {
-		parseInputByte(buffer_input[i]);
-	}
-}
-
 size_t VescDriver::sendPacket(const uint8_t *payload, const uint16_t payload_length)
 {
 	if (payload_length == 0 || payload_length > MAXIMUM_PAYLOAD_LENGTH) {
@@ -88,54 +77,6 @@ size_t VescDriver::sendPacket(const uint8_t *payload, const uint16_t payload_len
 	packet_buffer[index++] = 3;
 
 	return write(packet_buffer, index);
-}
-
-void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
-{
-	uint16_t index{1};
-	switch (payload[0]) {
-	case VescCommand::FW_VERSION:
-		if (payload_length >= 9u) {
-			_vesc_version.version_major = payload[index++];
-			_vesc_version.version_minor = payload[index++];
-			// strcpy(_vesc_version.hardware_name, reinterpret_cast<const char *>(&payload[index]));
-			// index += strlen(_vesc_version.hardware_name) + 1u;
-			// memcpy(_vesc_version.stm32_uuid_8, &payload[index], sizeof(_vesc_version.stm32_uuid_8));
-			// index += 12;
-			// _vesc_version.pairing_done = payload[index++];
-			// _vesc_version.test_version_number = payload[index++];
-			// _vesc_version.hardware_type = payload[index++];
-			// _vesc_version.custom_configuration = payload[index++];
-		}
-		break;
-	case VescCommand::GET_VALUES:
-		if (payload_length >= 73u) {
-			_vesc_values.fet_temperature = extractFloat16(payload, index) / 10.f;
-			_vesc_values.motor_temperature = extractFloat16(payload, index) / 10.f;
-			_vesc_values.motor_current = extractFloat32(payload, index) / 100.f;
-			_vesc_values.input_current = extractFloat32(payload, index) / 100.f;
-			_vesc_values.reset_average_id = extractFloat32(payload, index) / 100.f;
-			_vesc_values.reset_average_iq = extractFloat32(payload, index) / 100.f;
-			_vesc_values.duty_cycle = extractFloat16(payload, index) / 1000.f;
-			_vesc_values.rpm = extractInt32(payload, index);
-			_vesc_values.input_voltage = extractFloat16(payload, index) / 10.f;
-			_vesc_values.used_charge_Ah = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.charged_charge_Ah = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.used_energy_Wh = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.charged_energy_wh = extractFloat32(payload, index) / 10.f;
-			_vesc_values.tachometer = extractInt32(payload, index);
-			_vesc_values.tachometer_absolute = extractInt32(payload, index);
-			_vesc_values.fault = payload[index++];
-			_vesc_values.position_pid = extractFloat32(payload, index) / 1e6f;
-			_vesc_values.controller_id = payload[index++];
-			_vesc_values.ntc_temperature_mos1 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.ntc_temperature_mos2 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.ntc_temperature_mos3 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.read_reset_average_vd = extractFloat32(payload, index) / 1000.f;
-			_vesc_values.read_reset_average_vq = extractFloat32(payload, index) / 1000.f;
-		}
-		break;
-	}
 }
 
 void VescDriver::parseInputByte(uint8_t byte)
@@ -201,6 +142,54 @@ void VescDriver::parseInputByte(uint8_t byte)
 	}
 }
 
+void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
+{
+	uint16_t index{1};
+	switch (payload[0]) {
+	case VescCommand::FW_VERSION:
+		if (payload_length >= 9u) {
+			_vesc_version.version_major = payload[index++];
+			_vesc_version.version_minor = payload[index++];
+			// strcpy(_vesc_version.hardware_name, reinterpret_cast<const char *>(&payload[index]));
+			// index += strlen(_vesc_version.hardware_name) + 1u;
+			// memcpy(_vesc_version.stm32_uuid_8, &payload[index], sizeof(_vesc_version.stm32_uuid_8));
+			// index += 12;
+			// _vesc_version.pairing_done = payload[index++];
+			// _vesc_version.test_version_number = payload[index++];
+			// _vesc_version.hardware_type = payload[index++];
+			// _vesc_version.custom_configuration = payload[index++];
+		}
+		break;
+	case VescCommand::GET_VALUES:
+		if (payload_length >= 73u) {
+			_vesc_values.fet_temperature = extractFloat16(payload, index) / 10.f;
+			_vesc_values.motor_temperature = extractFloat16(payload, index) / 10.f;
+			_vesc_values.motor_current = extractFloat32(payload, index) / 100.f;
+			_vesc_values.input_current = extractFloat32(payload, index) / 100.f;
+			_vesc_values.reset_average_id = extractFloat32(payload, index) / 100.f;
+			_vesc_values.reset_average_iq = extractFloat32(payload, index) / 100.f;
+			_vesc_values.duty_cycle = extractFloat16(payload, index) / 1000.f;
+			_vesc_values.rpm = extractInt32(payload, index);
+			_vesc_values.input_voltage = extractFloat16(payload, index) / 10.f;
+			_vesc_values.used_charge_Ah = extractFloat32(payload, index) / 1e4f;
+			_vesc_values.charged_charge_Ah = extractFloat32(payload, index) / 1e4f;
+			_vesc_values.used_energy_Wh = extractFloat32(payload, index) / 1e4f;
+			_vesc_values.charged_energy_wh = extractFloat32(payload, index) / 10.f;
+			_vesc_values.tachometer = extractInt32(payload, index);
+			_vesc_values.tachometer_absolute = extractInt32(payload, index);
+			_vesc_values.fault = payload[index++];
+			_vesc_values.position_pid = extractFloat32(payload, index) / 1e6f;
+			_vesc_values.controller_id = payload[index++];
+			_vesc_values.ntc_temperature_mos1 = extractFloat16(payload, index) / 10.f;
+			_vesc_values.ntc_temperature_mos2 = extractFloat16(payload, index) / 10.f;
+			_vesc_values.ntc_temperature_mos3 = extractFloat16(payload, index) / 10.f;
+			_vesc_values.read_reset_average_vd = extractFloat32(payload, index) / 1000.f;
+			_vesc_values.read_reset_average_vq = extractFloat32(payload, index) / 1000.f;
+		}
+		break;
+	}
+}
+
 uint16_t VescDriver::crc16(const uint8_t *buffer, const uint16_t length)
 {
 	uint16_t checksum{0};
@@ -245,9 +234,4 @@ float VescDriver::extractFloat32(const uint8_t *buffer, uint16_t &index)
 
 size_t VescDriver::write(const uint8_t *buffer, const uint16_t length) {
 	return fwrite(buffer, sizeof(uint8_t), length, _device);
-}
-
-
-size_t VescDriver::read(uint8_t *buffer, const uint16_t length) {
-	return fread(buffer, sizeof(uint8_t), length, _device);
 }

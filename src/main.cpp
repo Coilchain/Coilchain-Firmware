@@ -18,8 +18,9 @@
 #include <mbed.h>
 
 #include "VescDriver.hpp"
+#include "MovingAverage.hpp"
 
-static constexpr int UPDATE_FREQUENCY_HZ{10};
+static constexpr int UPDATE_FREQUENCY_HZ{50};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
 static constexpr PinName VESC2_TX_PIN{PB_6};
@@ -52,6 +53,7 @@ int main()
 	printf("Coilchain v0.1\n");
 
 	float current{0.f};
+	MovingAverage<float> rpm_filter;
 
 	while(true) {
 		// Handle computer input
@@ -83,6 +85,7 @@ int main()
 			printf("Current: %.3f\n", current);
 		}
 
+		vesc_generator.requestValues();
 		vesc_generator.commandCurrent(current);
 
 		while (vesc1_uart.readable()) {
@@ -91,6 +94,9 @@ int main()
 				vesc_generator.parseInputByte(byte);
 			}
 		}
+
+		float rpm = rpm_filter.update(vesc_generator.getRpm());
+		printf("rpm: %.3f %.3f\n", vesc_generator.getRpm(), rpm);
 
 		// Handle pedal interrupt
 		if (is_pedal_interrupt_to_handle) {

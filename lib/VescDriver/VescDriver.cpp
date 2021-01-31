@@ -142,7 +142,7 @@ void VescDriver::parseInputByte(uint8_t byte)
 {
 	if (_input_byte_index == 0) {
 		// Start byte
-		if (byte == 2 || byte == 3) {
+		if (byte == 2 /*|| byte == 3*/) {
 			_input_start_byte = byte;
 			_input_byte_index++;
 		}

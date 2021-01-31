@@ -35,13 +35,12 @@ public:
 	float getRpm() { return _vesc_values.rpm; };
 	float getInputVoltage() { return _vesc_values.input_voltage; };
 
-	void processInput(); ///< call when data is ready to read
+	void parseInputByte(uint8_t byte); ///< call when data is ready to read
 
 private:
 	// de-/serialize packets
 	size_t sendPacket(const uint8_t *payload, const uint16_t payload_length);
 	void parsePayload(const uint8_t *payload, const uint16_t payload_length);
-	void parseInputByte(uint8_t byte);
 	uint16_t crc16(const uint8_t *buffer, const uint16_t length);
 
 	// big-endian helpers
@@ -53,7 +52,6 @@ private:
 
 	// byte stream access through _device
 	size_t write(const uint8_t *buffer, const uint16_t length);
-	size_t read(uint8_t *buffer, const uint16_t length);
 
 	FILE *_device;
 

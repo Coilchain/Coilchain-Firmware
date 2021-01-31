@@ -58,7 +58,7 @@ void VescDriver::processInput()
 
 size_t VescDriver::sendPacket(const uint8_t *payload, const uint16_t payload_length)
 {
-	if (payload_length > MAXIMUM_PAYLOAD_LENGTH) {
+	if (payload_length == 0 || payload_length > MAXIMUM_PAYLOAD_LENGTH) {
 		return 0;
 	}
 
@@ -92,7 +92,6 @@ size_t VescDriver::sendPacket(const uint8_t *payload, const uint16_t payload_len
 
 void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
 {
-	//printf("ID: %d Size: %d\n", payload[0], payload_length);
 	uint16_t index{1};
 	switch (payload[0]) {
 	case VescCommand::FW_VERSION:
@@ -155,6 +154,10 @@ void VescDriver::parseInputByte(uint8_t byte)
 		if (_input_start_byte == 2) {
 			// Short packet
 			_input_payload_length = byte;
+
+			if (_input_payload_length < 1) {
+				_input_byte_index = 0;
+			}
 		} else {
 			// Long packet high byte
 			_input_payload_length = byte << 8;
@@ -165,7 +168,7 @@ void VescDriver::parseInputByte(uint8_t byte)
 		_input_payload_length |= byte;
 		_input_byte_index++;
 
-		if (_input_payload_length > MAXIMUM_PAYLOAD_LENGTH) {
+		if (_input_payload_length < 255 || _input_payload_length > MAXIMUM_PAYLOAD_LENGTH) {
 			_input_byte_index = 0;
 		}
 

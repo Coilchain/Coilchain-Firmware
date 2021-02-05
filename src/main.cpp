@@ -20,12 +20,16 @@
 #include "VescDriver.hpp"
 #include "MovingAverage.hpp"
 
+#define TWO_PI 6.283185307179586476925286766559
+
 static constexpr int UPDATE_FREQUENCY_HZ{50};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
 static constexpr PinName VESC2_TX_PIN{PB_6};
 static constexpr PinName VESC2_RX_PIN{PB_7};
 static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
+
+static constexpr float FULL_TACHOMETER_ROT = 600.f;
 
 // Hardware initalization
 static DigitalOut led(LED1);
@@ -52,8 +56,12 @@ int main()
 	// Application start
 	printf("Coilchain v0.1\n");
 
+	float brake_current{8.f};
 	float current{0.f};
 	MovingAverage<float> rpm_filter;
+	float pedal_position{0.f};
+	int32_t zero_tachometer{0};
+	float sinus_phase{1.3f};
 
 	while(true) {
 		// Handle computer input
@@ -73,11 +81,35 @@ int main()
 			case 's':
 				current = 0.f;
 				break;
+
+			case 't':
+				brake_current += .1f;
+				brake_current = brake_current > 20.f ? 20.f : brake_current;
+				break;
+			case 'g':
+				brake_current -= .1f;
+				brake_current = brake_current < 0.f ? 0.f : brake_current;
+				break;
+			case 'h':
+				brake_current = 0.f;
+				break;
+
 			case 'v':
 				vesc_generator.requestFirmwareVersion();
+				vesc_motor.requestFirmwareVersion();
 				break;
-			case 't':
+			case 'b':
 				vesc_generator.requestValues();
+				vesc_motor.requestValues();
+				break;
+
+			case 'o':
+				sinus_phase += .1f;
+				sinus_phase = sinus_phase > TWO_PI ? TWO_PI : sinus_phase;
+				break;
+			case 'l':
+				sinus_phase -= .1f;
+				sinus_phase = sinus_phase < 0.f ? 0.f : sinus_phase;
 				break;
 			}
 
@@ -86,7 +118,6 @@ int main()
 		}
 
 		vesc_generator.requestValues();
-		vesc_generator.commandCurrent(current);
 
 		while (vesc1_uart.readable()) {
 			uint8_t byte;
@@ -95,14 +126,45 @@ int main()
 			}
 		}
 
-		float rpm = rpm_filter.update(vesc_generator.getRpm());
-		printf("rpm: %.3f %.3f\n", vesc_generator.getRpm(), rpm);
+		while (vesc2_uart.readable()) {
+			uint8_t byte;
+			if (vesc2_uart.read(&byte, 1)) {
+				vesc_motor.parseInputByte(byte);
+			}
+		}
 
 		// Handle pedal interrupt
 		if (is_pedal_interrupt_to_handle) {
 			printf("Pedal interrupt\n");
+			zero_tachometer = vesc_generator.getTachometer();
 			is_pedal_interrupt_to_handle = false;
 		}
+
+		float rpm = rpm_filter.update(vesc_generator.getRpm());
+		// printf("rpm: %.3f %.3f ", vesc_generator.getRpm(), rpm);
+		pedal_position = (static_cast<float>(vesc_generator.getTachometer()) - zero_tachometer) / FULL_TACHOMETER_ROT * TWO_PI;
+		printf("pedal: %.3f ", pedal_position);
+
+		static constexpr float SIN_INTENS = 4; // 2 is highest, infinity is lowest
+
+		float sinus_braking = (cos(2*(pedal_position + sinus_phase)) + SIN_INTENS - 1) / SIN_INTENS;
+		// printf("sinus: %.3f ", pedal_position);
+		
+		vesc_generator.commandBrakeCurrent(brake_current * sinus_braking);
+		printf("brake: %.3f %.3f ", brake_current, brake_current * sinus_braking);
+		printf("input: %.3f ", vesc_generator.getInputCurrent());
+		// printf("phase: %.3f ", sinus_phase);
+
+		float output_current = 2.f * fabsf(vesc_generator.getInputCurrent());
+		output_current = output_current < 30.f ? output_current : 30.f;
+		output_current = output_current > 0.f ? output_current : 0.f;
+
+		vesc_motor.commandCurrent(output_current);
+
+		printf("\n");
+
+		// printf("%.3f,%.3f\n", sinus_braking, sinus_phase);
+		// printf("%.3f\n", pedal_position);
 
 		// Toggle LED and wait
 		led = !led;

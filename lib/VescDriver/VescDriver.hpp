@@ -34,6 +34,8 @@ public:
 	void requestValues();
 	float getRpm() { return _vesc_values.rpm; };
 	float getInputVoltage() { return _vesc_values.input_voltage; };
+	int32_t getTachometer() { return _vesc_values.tachometer; }
+	float getInputCurrent() { return _vesc_values.input_current; }
 
 	void parseInputByte(uint8_t byte); ///< call when data is ready to read
 

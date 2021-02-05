@@ -56,7 +56,7 @@ int main()
 	// Application start
 	printf("Coilchain v0.1\n");
 
-	float brake_current{8.f};
+	float brake_current_integral{0.f};
 	float current{0.f};
 	MovingAverage<float> rpm_filter;
 	float pedal_position{0.f};
@@ -83,15 +83,15 @@ int main()
 				break;
 
 			case 't':
-				brake_current += .1f;
-				brake_current = brake_current > 20.f ? 20.f : brake_current;
+				brake_current_integral += .1f;
+				brake_current_integral = brake_current_integral > 20.f ? 20.f : brake_current_integral;
 				break;
 			case 'g':
-				brake_current -= .1f;
-				brake_current = brake_current < 0.f ? 0.f : brake_current;
+				brake_current_integral -= .1f;
+				brake_current_integral = brake_current_integral < 0.f ? 0.f : brake_current_integral;
 				break;
 			case 'h':
-				brake_current = 0.f;
+				brake_current_integral = 0.f;
 				break;
 
 			case 'v':
@@ -140,8 +140,22 @@ int main()
 			is_pedal_interrupt_to_handle = false;
 		}
 
-		float rpm = rpm_filter.update(vesc_generator.getRpm());
+		// Filter rpm
+		static constexpr float RPM_MOTOR_SCALE = 1 / (14.583f * 7.f);
+		const float rpm = rpm_filter.update(vesc_generator.getRpm() * RPM_MOTOR_SCALE);
 		// printf("rpm: %.3f %.3f ", vesc_generator.getRpm(), rpm);
+
+		// rpm control
+		static constexpr float RPM_SETPOINT = 75.f;
+		static constexpr float P_GAIN = .2f;
+		static constexpr float I_GAIN = .003f;
+		const float rpm_error = rpm - RPM_SETPOINT;
+		brake_current_integral += I_GAIN * rpm_error;
+		brake_current_integral = brake_current_integral > 0.f ? brake_current_integral : 0.f;
+		float brake_current = P_GAIN * rpm_error;// + brake_current_integral;
+		brake_current = brake_current > 0.f ? brake_current : 0.f;
+
+		// pedal position tracking
 		pedal_position = (static_cast<float>(vesc_generator.getTachometer()) - zero_tachometer) / FULL_TACHOMETER_ROT * TWO_PI;
 		printf("pedal: %.3f ", pedal_position);
 
@@ -155,7 +169,7 @@ int main()
 		printf("input: %.3f ", vesc_generator.getInputCurrent());
 		// printf("phase: %.3f ", sinus_phase);
 
-		float output_current = 2.f * fabsf(vesc_generator.getInputCurrent());
+		float output_current = 10.f * fabsf(vesc_generator.getInputCurrent());
 		output_current = output_current < 30.f ? output_current : 30.f;
 		output_current = output_current > 0.f ? output_current : 0.f;
 

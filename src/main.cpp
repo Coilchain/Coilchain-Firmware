@@ -22,7 +22,7 @@
 
 #define TWO_PI 6.283185307179586476925286766559
 
-static constexpr int UPDATE_FREQUENCY_HZ{50};
+static constexpr int UPDATE_FREQUENCY_HZ{1000};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
 static constexpr PinName VESC2_TX_PIN{PB_6};
@@ -57,11 +57,14 @@ int main()
 	printf("Coilchain v0.1\n");
 
 	float brake_current_integral{0.f};
-	float current{0.f};
+	float rpm_setpoint{60.f};
+	float p_gain{0.f};
+	float i_gain{.011f};
 	MovingAverage<float> rpm_filter;
 	float pedal_position{0.f};
 	int32_t zero_tachometer{0};
 	float sinus_phase{1.3f};
+	int printf_counter{0};
 
 	while(true) {
 		// Handle computer input
@@ -71,24 +74,24 @@ int main()
 
 			switch (letter) {
 			case 'q':
-				current += .1f;
-				current = current > 5.f ? 5.f : current;
+				i_gain += .001f;
 				break;
 			case 'a':
-				current -= .1f;
-				current = current < 0.f ? 0.f : current;
+				i_gain -= .001f;
+				break;
+
+			case 'w':
+				p_gain += .01f;
 				break;
 			case 's':
-				current = 0.f;
+				p_gain -= .01f;
 				break;
 
 			case 't':
-				brake_current_integral += .1f;
-				brake_current_integral = brake_current_integral > 20.f ? 20.f : brake_current_integral;
+				rpm_setpoint += 1;
 				break;
 			case 'g':
-				brake_current_integral -= .1f;
-				brake_current_integral = brake_current_integral < 0.f ? 0.f : brake_current_integral;
+				rpm_setpoint -= 1;
 				break;
 			case 'h':
 				brake_current_integral = 0.f;
@@ -113,8 +116,7 @@ int main()
 				break;
 			}
 
-			printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());
-			printf("Current: %.3f\n", current);
+			//printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());
 		}
 
 		vesc_generator.requestValues();
@@ -135,29 +137,34 @@ int main()
 
 		// Handle pedal interrupt
 		if (is_pedal_interrupt_to_handle) {
-			printf("Pedal interrupt\n");
+			//printf("Pedal interrupt\n");
 			zero_tachometer = vesc_generator.getTachometer();
 			is_pedal_interrupt_to_handle = false;
 		}
 
 		// Filter rpm
 		static constexpr float RPM_MOTOR_SCALE = 1 / (14.583f * 7.f);
-		const float rpm = rpm_filter.update(vesc_generator.getRpm() * RPM_MOTOR_SCALE);
+		const float rpm = vesc_generator.getRpm() * RPM_MOTOR_SCALE;
+		const float rpm_filtered = rpm_filter.update(rpm);
 		// printf("rpm: %.3f %.3f ", vesc_generator.getRpm(), rpm);
 
 		// rpm control
-		static constexpr float RPM_SETPOINT = 75.f;
-		static constexpr float P_GAIN = .2f;
-		static constexpr float I_GAIN = .003f;
-		const float rpm_error = rpm - RPM_SETPOINT;
-		brake_current_integral += I_GAIN * rpm_error;
+		const float rpm_error = rpm - rpm_setpoint;
+		brake_current_integral += i_gain * rpm_error;
 		brake_current_integral = brake_current_integral > 0.f ? brake_current_integral : 0.f;
-		float brake_current = P_GAIN * rpm_error;// + brake_current_integral;
-		brake_current = brake_current > 0.f ? brake_current : 0.f;
+		
+		float p_term{0.f};
+		if (rpm_error > 0.f) {
+			p_term = p_gain * rpm_error;
+		} else {
+			p_term = 10.f * p_gain * rpm_error;
+		}
+		float brake_current = p_term + brake_current_integral;
+		brake_current = brake_current > .1f ? brake_current : .1f;
 
 		// pedal position tracking
 		pedal_position = (static_cast<float>(vesc_generator.getTachometer()) - zero_tachometer) / FULL_TACHOMETER_ROT * TWO_PI;
-		printf("pedal: %.3f ", pedal_position);
+		// printf("pedal: %.3f ", pedal_position);
 
 		static constexpr float SIN_INTENS = 4; // 2 is highest, infinity is lowest
 
@@ -165,20 +172,29 @@ int main()
 		// printf("sinus: %.3f ", pedal_position);
 		
 		vesc_generator.commandBrakeCurrent(brake_current * sinus_braking);
-		printf("brake: %.3f %.3f ", brake_current, brake_current * sinus_braking);
-		printf("input: %.3f ", vesc_generator.getInputCurrent());
+		// printf("brake: %.3f %.3f ", brake_current, brake_current * sinus_braking);
+		// printf("input: %.3f ", vesc_generator.getInputCurrent());
 		// printf("phase: %.3f ", sinus_phase);
 
-		float output_current = 10.f * fabsf(vesc_generator.getInputCurrent());
-		output_current = output_current < 30.f ? output_current : 30.f;
-		output_current = output_current > 0.f ? output_current : 0.f;
+		float output_current = fabsf(vesc_generator.getInputCurrent());
+		// output_current = output_current < 30.f ? output_current : 30.f;
+		// output_current = output_current > 0.f ? output_current : 0.f;
 
-		vesc_motor.commandCurrent(output_current);
+		// vesc_motor.commandCurrent(output_current);
 
-		printf("\n");
-
-		// printf("%.3f,%.3f\n", sinus_braking, sinus_phase);
-		// printf("%.3f\n", pedal_position);
+		const float i_scaled = i_gain * 100.f;
+		computer.write(&rpm_setpoint, 4);
+		computer.write(&pedal_position, 4);
+		computer.write(&i_scaled, 4);
+		computer.write(&rpm, 4);
+		computer.write(&sinus_phase, 4);
+		computer.write(&brake_current, 4);
+		computer.write(&sinus_braking, 4);
+		computer.write(&output_current, 4);
+		// if (printf_counter % 100) {
+		// 	printf("%.3f,%.3f,%.3f,%.3f,%.3f\n", rpm_setpoint, p_gain, rpm, rpm_error, brake_current);
+		// }
+		printf_counter++;
 
 		// Toggle LED and wait
 		led = !led;

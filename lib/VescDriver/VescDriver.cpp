@@ -20,29 +20,37 @@
 void VescDriver::commandCurrent(float current)
 {
 	uint8_t command[5]{VescCommand::SET_CURRENT};
-	uint16_t index{1};
+	uint16_t index{1u};
 	insertInt32(command, index, static_cast<int32_t>(current * 1000.f));
-	sendPacket(command, 5);
+	sendPacket(command, 5u);
 }
 
 void VescDriver::commandBrakeCurrent(float current)
 {
 	uint8_t command[5]{VescCommand::SET_CURRENT_BRAKE};
-	uint16_t index{1};
+	uint16_t index{1u};
 	insertInt32(command, index, static_cast<int32_t>(current * 1000.f));
-	sendPacket(command, 5);
+	sendPacket(command, 5u);
 }
 
 void VescDriver::requestFirmwareVersion()
 {
 	uint8_t command{VescCommand::FW_VERSION};
-	sendPacket(&command, 1);
+	sendPacket(&command, 1u);
 }
 
 void VescDriver::requestValues()
 {
 	uint8_t command{VescCommand::GET_VALUES};
-	sendPacket(&command, 1);
+	sendPacket(&command, 1u);
+}
+
+void VescDriver::requestRpm()
+{
+	uint8_t command[5]{VescCommand::GET_VALUES_SELECTIVE};
+	uint16_t index{1};
+	insertUInt32(command, index, 0x80);
+	sendPacket(command, 5u);
 }
 
 size_t VescDriver::sendPacket(const uint8_t *payload, const uint16_t payload_length)
@@ -143,7 +151,7 @@ void VescDriver::parseInputByte(uint8_t byte)
 }
 
 void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
-{
+{	
 	uint16_t index{1u};
 	switch (payload[0]) {
 	case VescCommand::FW_VERSION:
@@ -208,6 +216,14 @@ uint16_t VescDriver::crc16(const uint8_t *buffer, const uint16_t length)
 }
 
 void VescDriver::insertInt32(uint8_t *buffer, uint16_t &index, int32_t value)
+{
+	buffer[index++] = value >> 24;
+	buffer[index++] = value >> 16;
+	buffer[index++] = value >> 8;
+	buffer[index++] = value;
+}
+
+void VescDriver::insertUInt32(uint8_t *buffer, uint16_t &index, uint32_t value)
 {
 	buffer[index++] = value >> 24;
 	buffer[index++] = value >> 16;

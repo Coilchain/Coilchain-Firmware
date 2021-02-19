@@ -32,6 +32,7 @@ public:
 
 	void requestFirmwareVersion();
 	void requestValues();
+	void requestRpm();
 	float getRpm() { return _vesc_values.rpm; };
 	float getInputVoltage() { return _vesc_values.input_voltage; };
 
@@ -45,6 +46,7 @@ private:
 
 	// big-endian helpers
 	void insertInt32(uint8_t *buffer, uint16_t &index, int32_t value);
+	void insertUInt32(uint8_t *buffer, uint16_t &index, uint32_t value);
 	int16_t extractInt16(const uint8_t *buffer, uint16_t &index);
 	float extractFloat16(const uint8_t *buffer, uint16_t &index);
 	int32_t extractInt32(const uint8_t *buffer, uint16_t &index);

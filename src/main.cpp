@@ -76,10 +76,14 @@ int main()
 				break;
 			case 't':
 				vesc_generator.requestValues();
+				printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());
+				break;
+			case 'r':
+				vesc_generator.requestRpm();
+				printf("RPM: %.3f\n", vesc_generator.getRpm());
 				break;
 			}
 
-			printf("Voltage: %.3f\n", vesc_generator.getInputVoltage());
 			printf("Current: %.3f\n", current);
 		}
 

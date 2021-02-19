@@ -49,6 +49,7 @@ private:
 	float extractFloat16(const uint8_t *buffer, uint16_t &index);
 	int32_t extractInt32(const uint8_t *buffer, uint16_t &index);
 	float extractFloat32(const uint8_t *buffer, uint16_t &index);
+	uint32_t extractUInt32(const uint8_t *buffer, uint16_t &index);
 
 	// byte stream access through _device
 	size_t write(const uint8_t *buffer, const uint16_t length);

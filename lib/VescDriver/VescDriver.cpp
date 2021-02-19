@@ -144,7 +144,7 @@ void VescDriver::parseInputByte(uint8_t byte)
 
 void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
 {
-	uint16_t index{1};
+	uint16_t index{1u};
 	switch (payload[0]) {
 	case VescCommand::FW_VERSION:
 		if (payload_length >= 9u) {
@@ -161,31 +161,36 @@ void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_len
 		}
 		break;
 	case VescCommand::GET_VALUES:
-		if (payload_length >= 73u) {
-			_vesc_values.fet_temperature = extractFloat16(payload, index) / 10.f;
-			_vesc_values.motor_temperature = extractFloat16(payload, index) / 10.f;
-			_vesc_values.motor_current = extractFloat32(payload, index) / 100.f;
-			_vesc_values.input_current = extractFloat32(payload, index) / 100.f;
-			_vesc_values.reset_average_id = extractFloat32(payload, index) / 100.f;
-			_vesc_values.reset_average_iq = extractFloat32(payload, index) / 100.f;
-			_vesc_values.duty_cycle = extractFloat16(payload, index) / 1000.f;
-			_vesc_values.rpm = extractInt32(payload, index);
-			_vesc_values.input_voltage = extractFloat16(payload, index) / 10.f;
-			_vesc_values.used_charge_Ah = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.charged_charge_Ah = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.used_energy_Wh = extractFloat32(payload, index) / 1e4f;
-			_vesc_values.charged_energy_wh = extractFloat32(payload, index) / 10.f;
-			_vesc_values.tachometer = extractInt32(payload, index);
-			_vesc_values.tachometer_absolute = extractInt32(payload, index);
-			_vesc_values.fault = payload[index++];
-			_vesc_values.position_pid = extractFloat32(payload, index) / 1e6f;
-			_vesc_values.controller_id = payload[index++];
-			_vesc_values.ntc_temperature_mos1 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.ntc_temperature_mos2 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.ntc_temperature_mos3 = extractFloat16(payload, index) / 10.f;
-			_vesc_values.read_reset_average_vd = extractFloat32(payload, index) / 1000.f;
-			_vesc_values.read_reset_average_vq = extractFloat32(payload, index) / 1000.f;
+	case VescCommand::GET_VALUES_SELECTIVE:
+		uint32_t mask = 0xFFFFFFFF; // all values for GET_VALUES
+		uint8_t mask_index{0u};
+		if (payload[0] == VescCommand::GET_VALUES_SELECTIVE) {
+			mask = extractUInt32(payload, index); // selected values for GET_VALUES_SELECTIVE
 		}
+
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.fet_temperature = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.motor_temperature = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.motor_current = extractFloat32(payload, index) / 100.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.input_current = extractFloat32(payload, index) / 100.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.reset_average_id = extractFloat32(payload, index) / 100.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.reset_average_iq = extractFloat32(payload, index) / 100.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.duty_cycle = extractFloat16(payload, index) / 1000.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.rpm = extractInt32(payload, index);
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.input_voltage = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.used_charge_Ah = extractFloat32(payload, index) / 1e4f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.charged_charge_Ah = extractFloat32(payload, index) / 1e4f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.used_energy_Wh = extractFloat32(payload, index) / 1e4f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.charged_energy_wh = extractFloat32(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.tachometer = extractInt32(payload, index);
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.tachometer_absolute = extractInt32(payload, index);
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.fault = payload[index++];
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.position_pid = extractFloat32(payload, index) / 1e6f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.controller_id = payload[index++];
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.ntc_temperature_mos1 = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.ntc_temperature_mos2 = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.ntc_temperature_mos3 = extractFloat16(payload, index) / 10.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.read_reset_average_vd = extractFloat32(payload, index) / 1000.f;
+		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.read_reset_average_vq = extractFloat32(payload, index) / 1000.f;
 		break;
 	}
 }
@@ -230,6 +235,12 @@ int32_t VescDriver::extractInt32(const uint8_t *buffer, uint16_t &index)
 float VescDriver::extractFloat32(const uint8_t *buffer, uint16_t &index)
 {
 	return static_cast<float>(extractInt32(buffer, index));
+}
+
+uint32_t VescDriver::extractUInt32(const uint8_t *buffer, uint16_t &index)
+{
+	index += 4;
+	return static_cast<uint32_t>(buffer[index - 4] << 24 | buffer[index - 3] << 16 | buffer[index - 2] << 8 | buffer[index - 1]);
 }
 
 size_t VescDriver::write(const uint8_t *buffer, const uint16_t length) {

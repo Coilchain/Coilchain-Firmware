@@ -6,7 +6,8 @@
 	"files.associations": {
 		"string_view": "cpp",
 		"iostream": "cpp",
-		"functional": "cpp"
+		"functional": "cpp",
+		"chrono": "cpp"
 	},
 	"files.insertFinalNewline": true,
 	"files.trimFinalNewlines": true

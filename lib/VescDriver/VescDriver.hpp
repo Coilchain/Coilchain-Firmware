@@ -21,11 +21,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "VescProtocol.h"
+#include <mbed.h>
 
 class VescDriver {
 public:
-	VescDriver(FILE *device) : _device(device) {};
-	~VescDriver() { fclose(_device); };
+	VescDriver(BufferedSerial &serial) : _serial(serial) {};
+	~VescDriver() = default;
 
 	void commandCurrent(float current);
 	void commandBrakeCurrent(float current);
@@ -37,6 +38,8 @@ public:
 	float getInputVoltage() { return _vesc_values.input_voltage; };
 
 	void parseInputByte(uint8_t byte); ///< call when data is ready to read
+
+	bool _new_data_available{false};
 
 private:
 	// de-/serialize packets
@@ -56,8 +59,6 @@ private:
 	// byte stream access through _device
 	size_t write(const uint8_t *buffer, const uint16_t length);
 
-	FILE *_device;
-
 	// input packet parsing
 	size_t _input_byte_index{0}; ///< keeps track of the input packets parsing state
 	uint8_t _input_start_byte{0};
@@ -68,4 +69,6 @@ private:
 	// information storage for getters
 	VescVersion _vesc_version{};
 	VescValues _vesc_values{};
+
+	BufferedSerial &_serial;
 };

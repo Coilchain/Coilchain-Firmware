@@ -151,7 +151,7 @@ void VescDriver::parseInputByte(uint8_t byte)
 }
 
 void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_length)
-{	
+{
 	uint16_t index{1u};
 	switch (payload[0]) {
 	case VescCommand::FW_VERSION:
@@ -201,6 +201,7 @@ void VescDriver::parsePayload(const uint8_t *payload, const uint16_t payload_len
 		if (mask & static_cast<uint32_t>(1 << mask_index++)) _vesc_values.read_reset_average_vq = extractFloat32(payload, index) / 1000.f;
 		break;
 	}
+	_new_data_available = true;
 }
 
 uint16_t VescDriver::crc16(const uint8_t *buffer, const uint16_t length)
@@ -260,5 +261,5 @@ uint32_t VescDriver::extractUInt32(const uint8_t *buffer, uint16_t &index)
 }
 
 size_t VescDriver::write(const uint8_t *buffer, const uint16_t length) {
-	return fwrite(buffer, sizeof(uint8_t), length, _device);
+	return _serial.write(buffer, length);
 }

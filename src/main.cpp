@@ -30,7 +30,7 @@ static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
 static DigitalOut led(LED1);
 static BufferedSerial computer(USBTX, USBRX, 9600);
 static BufferedSerial vesc1_uart(VESC1_TX_PIN, VESC1_RX_PIN, 921600);
-static BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 115200);
+static BufferedSerial vesc2_uart(VESC2_TX_PIN, VESC2_RX_PIN, 921600);
 
 volatile bool is_pedal_interrupt_to_handle{false};
 
@@ -53,7 +53,8 @@ int main()
 {
 	vesc1_uart.set_blocking(false);
 	VescDriver vesc_generator(vesc1_uart);
-	//VescDriver vesc_motor(fdopen(&vesc2_uart, "r+b"));
+	VescDriver vesc_motor(vesc2_uart);
+	int counter = 0;
 
 	InterruptIn pedal_interrupt(PEDAL_INTERRUPT_PIN);
 	pedal_interrupt.fall(&pedal_interrupt_callback);
@@ -116,6 +117,22 @@ int main()
 				generator_control(vesc_generator, p_gain, rpm_setpoint);
 				vesc_generator._new_data_available = false;
 				t.reset();
+
+				counter++;
+
+				wait_us(static_cast<int>(1e6) / UPDATE_FREQUENCY_HZ);
+				float output_current = 5.f * fabsf(vesc_generator.getInputCurrent());
+				const float currents_ratio = vesc_motor.getMotorCurrent() / vesc_motor.getInputCurrent();
+				output_current *= currents_ratio > 1.f ? currents_ratio : 1.f;
+				vesc_motor.commandCurrent(output_current);
+				vesc_motor.requestCurrents();
+			}
+		}
+
+		while (vesc2_uart.readable()) {
+			uint8_t byte;
+			if (vesc2_uart.read(&byte, 1)) {
+				vesc_motor.parseInputByte(byte);
 			}
 		}
 

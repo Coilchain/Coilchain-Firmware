@@ -49,7 +49,15 @@ void VescDriver::requestRpm()
 {
 	uint8_t command[5]{VescCommand::GET_VALUES_SELECTIVE};
 	uint16_t index{1};
-	insertUInt32(command, index, 0x80);
+	insertUInt32(command, index, 0x88);
+	sendPacket(command, 5u);
+}
+
+void VescDriver::requestCurrents()
+{
+	uint8_t command[5]{VescCommand::GET_VALUES_SELECTIVE};
+	uint16_t index{1};
+	insertUInt32(command, index, 0x0C);
 	sendPacket(command, 5u);
 }
 

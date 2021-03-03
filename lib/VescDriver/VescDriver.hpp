@@ -34,8 +34,11 @@ public:
 	void requestFirmwareVersion();
 	void requestValues();
 	void requestRpm();
+	void requestCurrents();
 	float getRpm() { return _vesc_values.rpm; };
-	float getInputVoltage() { return _vesc_values.input_voltage; };
+	float getInputVoltage() { return _vesc_values.input_voltage; }
+	float getInputCurrent() { return _vesc_values.input_current; }
+	float getMotorCurrent() { return _vesc_values.motor_current; }
 
 	void parseInputByte(uint8_t byte); ///< call when data is ready to read
 

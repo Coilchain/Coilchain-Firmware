@@ -22,8 +22,8 @@
 static constexpr int UPDATE_FREQUENCY_HZ{1000};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
-static constexpr PinName VESC2_TX_PIN{PB_6};
-static constexpr PinName VESC2_RX_PIN{PB_7};
+static constexpr PinName VESC2_TX_PIN{PA_2};
+static constexpr PinName VESC2_RX_PIN{PA_3};
 static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
 
 // Hardware initalization
@@ -121,7 +121,7 @@ int main()
 				counter++;
 
 				wait_us(static_cast<int>(1e6) / UPDATE_FREQUENCY_HZ);
-				float output_current = 5.f * fabsf(vesc_generator.getInputCurrent());
+				float output_current = 8.f * fabsf(vesc_generator.getInputCurrent());
 				const float currents_ratio = vesc_motor.getMotorCurrent() / vesc_motor.getInputCurrent();
 				output_current *= currents_ratio > 1.f ? currents_ratio : 1.f;
 				vesc_motor.commandCurrent(output_current);

@@ -28,6 +28,7 @@ public:
 	VescDriver(BufferedSerial &serial) : _serial(serial) {};
 	~VescDriver() = default;
 
+	void commandDutyCycle(float duty_cycle);
 	void commandCurrent(float current);
 	void commandBrakeCurrent(float current);
 

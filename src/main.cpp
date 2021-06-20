@@ -22,8 +22,8 @@
 static constexpr int UPDATE_FREQUENCY_HZ{1000};
 static constexpr PinName VESC1_TX_PIN{PA_11};
 static constexpr PinName VESC1_RX_PIN{PA_12};
-static constexpr PinName VESC2_TX_PIN{PA_2};
-static constexpr PinName VESC2_RX_PIN{PA_3};
+static constexpr PinName VESC2_TX_PIN{PB_6};
+static constexpr PinName VESC2_RX_PIN{PB_7};
 static constexpr PinName PEDAL_INTERRUPT_PIN{PC_6};
 
 // Hardware initalization
@@ -45,7 +45,9 @@ void generator_control(VescDriver &vesc_generator, float p_gain, float rpm_setpo
 	float brake_current = p_gain * (rpm - rpm_setpoint);
 	brake_current = brake_current > 0.f ? brake_current : 0.f;
 
-	vesc_generator.commandBrakeCurrent(brake_current);
+	if (brake_current > 0.001f) {
+		vesc_generator.commandDutyCycle(0.3f);
+	}
 	vesc_generator.requestRpm();
 }
 
@@ -65,7 +67,7 @@ int main()
 	// Application start
 	printf("Coilchain v0.1\n");
 
-	float rpm_setpoint{70.f};
+	float rpm_setpoint{60.f};
 	float p_gain{2.f};
 
 	while(true) {
@@ -124,8 +126,8 @@ int main()
 				float output_current = 8.f * fabsf(vesc_generator.getInputCurrent());
 				const float currents_ratio = vesc_motor.getMotorCurrent() / vesc_motor.getInputCurrent();
 				output_current *= currents_ratio > 1.f ? currents_ratio : 1.f;
-				vesc_motor.commandCurrent(output_current);
-				vesc_motor.requestCurrents();
+				// vesc_motor.commandCurrent(output_current);
+				// vesc_motor.requestCurrents();
 			}
 		}
 

@@ -5,8 +5,6 @@ class CAN
 
 public:
 
-#define CAN0_INT 11                              // Set INT to pin 21
-
 long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];

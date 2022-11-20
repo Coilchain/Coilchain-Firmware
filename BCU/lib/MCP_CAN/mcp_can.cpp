@@ -826,7 +826,7 @@ INT8U MCP_CAN::begin(INT8U idmodeset, INT8U speedset, INT8U clockset)
     INT8U res;
     SPI1.setRX(12);
     SPI1.setTX(15);
-    SPI1.setSCK(14);
+    SPI1.setSCK(10);
     SPI1.begin();
     res = mcp2515_init(idmodeset, speedset, clockset);
     if (res == MCP2515_OK)

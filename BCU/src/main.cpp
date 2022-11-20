@@ -10,7 +10,8 @@
 TFT_eSPI tft = TFT_eSPI(); 
 CAN can;             // get torque sensor data, throttle for now
 
-#define CAN0_INT 11                              // Set INT to pin 2
+#define CAN0_INT 8                              // Set INT to pin 2
+#define LED_GREEN 9
 
 bool print_realtime_data = true;
 long last_print_data;
@@ -23,7 +24,7 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextFont(2);
   // initialize the digital pin as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
   pinMode(TFT_BL,OUTPUT);
   digitalWrite(TFT_BL, HIGH);
   pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
@@ -72,7 +73,7 @@ void loop() {
       float cmd = float(i)*100.0;
       can.vesc_set_erpm(cmd); //2 amps of current
 
-      tft.setCursor(0,0);
+      tft.setCursor(0,20);
       //tft.fillScreen(TFT_BLACK);
       tft.print(i,DEC); tft.print("   "); tft.print(cmd); tft.print("   \n");
       tft.print("erpm = "); tft.print(can.erpm); tft.print("   \n");
@@ -90,7 +91,7 @@ void loop() {
       Serial.print(can.avgMotorCurrent); Serial.print(',');
       Serial.print(can.tempFET); Serial.print(',');
       Serial.println(can.tempMotor);
-      digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+      digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
       last_print_data = millis();
     }
   }
@@ -164,14 +165,14 @@ static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
 
 void setup () {
   //--- Switch on builtin led
-  pinMode (LED_BUILTIN, OUTPUT) ;
-  digitalWrite (LED_BUILTIN, HIGH) ;
+  pinMode (LED_GREEN, OUTPUT) ;
+  digitalWrite (LED_GREEN, HIGH) ;
   //--- Start serial
   Serial.begin (115200) ;
   //--- Wait for serial (blink led at 10 Hz during waiting)
   while (!Serial) {
     delay (50) ;
-    digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
+    digitalWrite (LED_GREEN, !digitalRead (LED_GREEN)) ;
   }
   //--- There are no default SPI1 pins so they must be explicitly assigned
   SPI1.setSCK (MCP2515_SCK);
@@ -224,7 +225,7 @@ void loop () {
   CANMessage frame ;
   if (gBlinkLedDate < millis ()) {
     gBlinkLedDate += 2000 ;
-    digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
+    digitalWrite (LED_GREEN, !digitalRead (LED_GREEN)) ;
     frame.ext = true ;
     frame.id = 0x1FFFFFFF ;
     frame.len = 8 ;

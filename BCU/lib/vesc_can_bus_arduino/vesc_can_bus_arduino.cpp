@@ -82,25 +82,24 @@ void CAN::vesc_set_duty(float duty) {
   sndStat = CAN0.sendMsgBuf(0x00000001, 1, 4, buffer);
 }
 
-void CAN::vesc_set_current(float current) {
-  uint32_t set_value = current * 1000;
+void CAN::vesc_set_current(uint8_t vesc_id, uint32_t set_value) {
+  // set_value = current in mA
   uint8_t buffer[4];
   buffer[0] = (set_value >> 24) & 0xFF;
   buffer[1] = (set_value >> 16) & 0xFF;
   buffer[2] = (set_value  >> 8  )  & 0xFF;
   buffer[3] = set_value & 0xFF;
-  byte sndStat = CAN0.sendMsgBuf(0x00000101, 1, 4, buffer);
+  byte sndStat = CAN0.sendMsgBuf(0x00000100+vesc_id, 1, 4, buffer);
 }
 
-void CAN::vesc_set_erpm(float erpm) {
+void CAN::vesc_set_erpm(uint8_t vesc_id, uint32_t erpm) {
   uint32_t set_value = erpm;
   uint8_t buffer[4];
   buffer[0] = (set_value >> 24) & 0xFF;
   buffer[1] = (set_value >> 16) & 0xFF;
   buffer[2] = (set_value  >> 8  )  & 0xFF;
   buffer[3] = set_value & 0xFF;
-  byte sndStat = CAN0.sendMsgBuf(0x00000301, 1, 4, buffer);
-  sndStat = CAN0.sendMsgBuf(0x00000302, 1, 4, buffer);
+  byte sndStat = CAN0.sendMsgBuf(0x00000300+vesc_id, 1, 4, buffer);
 }
 void CAN::get_frame() {
   CAN0.readMsgBuf(&rxId, &len, rxBuf);      // Read data: len = data length, buf = data byte(s)

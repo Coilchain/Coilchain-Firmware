@@ -23,8 +23,8 @@ void print_raw_can_data(); //output raw can data to terminal (debug)
 
 
 void vesc_set_duty(float duty);
-void vesc_set_current(float current);
-void vesc_set_erpm(float erpm);
+void vesc_set_current(uint8_t vesc_id, uint32_t current);
+void vesc_set_erpm(uint8_t vesc_id, uint32_t erpm);
 float process_data_frame_vesc(char datatype, unsigned char byte1, unsigned char byte2);
 int hex2int(char buf[]);
 

@@ -12,19 +12,28 @@ CAN can;             // get torque sensor data, throttle for now
 
 #define CAN0_INT 8                              // Set INT to pin 2
 #define LED_GREEN 9
+#define ENABLE_12V 7
+#define TACH_GPIO 11
+#define TORQUE_ADC A0
 
+//207, 460
+#define TORQUE_MIN 512
+#define TORQUE_MAX 1024
+#define CURRENT_MAX (50*1000)
 bool print_realtime_data = true;
 long last_print_data;
 
 void setup() {
   Serial.begin(115200);
   tft.init();
-  tft.setRotation(2);
+  tft.setRotation(1);
   tft.setTextSize(1);
   tft.fillScreen(TFT_BLACK);
   tft.setTextFont(2);
   // initialize the digital pin as an output.
   pinMode(LED_GREEN, OUTPUT);
+  pinMode(ENABLE_12V, OUTPUT);
+  digitalWrite(ENABLE_12V, HIGH);
   pinMode(TFT_BL,OUTPUT);
   digitalWrite(TFT_BL, HIGH);
   pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
@@ -39,43 +48,35 @@ void setup() {
     Serial.println("Error Initializing MCP2515...");  
     // digitalWrite(TFT_BL, LOW);
   }
-  //delay(3000);
+  delay(500);
+  tft.fillScreen(TFT_BLACK);
   
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
+  uint32_t torqueVal = analogRead(TORQUE_ADC);
+  torqueVal = constrain(torqueVal, TORQUE_MIN, TORQUE_MAX);
+  uint32_t motorCurrent = map(torqueVal, TORQUE_MIN, TORQUE_MAX, 0, CURRENT_MAX);
+  tft.setCursor(0,0);
+  tft.print(torqueVal); tft.print("        ");
+  tft.setCursor(100,0);
+  tft.print(motorCurrent); tft.print("        ");
+  
   static uint i = 0;
+  static uint32_t cadence = 25000;
   static bool up_down=1;
   if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
   {
     can.spin();
-    if (millis() - last_print_data > 200)
+    if (millis() - last_print_data > 100)
     {
-      if(up_down)
-      {
-        i++;
-      }
-      else 
-      {
-        i--;
-      }
-
-      if (i >= 100) 
-      {
-        i = 100; 
-        up_down=0;
-      }
-      if (i == 0)
-      {
-        up_down = 1;
-      }
-      float cmd = float(i)*100.0;
-      can.vesc_set_erpm(cmd); //2 amps of current
+      can.vesc_set_erpm(1, cadence); //set generator rpm
+      can.vesc_set_current(2, motorCurrent); //set generator rpm
 
       tft.setCursor(0,20);
       //tft.fillScreen(TFT_BLACK);
-      tft.print(i,DEC); tft.print("   "); tft.print(cmd); tft.print("   \n");
+      tft.print(i,DEC); tft.print("   "); tft.print(torqueVal); tft.print("   \n");
       tft.print("erpm = "); tft.print(can.erpm); tft.print("   \n");
       tft.print("inpVoltage = "); tft.print(can.inpVoltage); tft.print("   \n");
       tft.print("dutyCycleNow = "); tft.print(can.dutyCycleNow); tft.print("   \n");

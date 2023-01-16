@@ -64,7 +64,7 @@ void loop() {
   tft.print(motorCurrent); tft.print("        ");
   
   static uint i = 0;
-  static uint32_t cadence = 25000;
+  static uint32_t cadence = 33000;
   static bool up_down=1;
   if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
   {

@@ -7,6 +7,8 @@
 #include <mcp_can.h>
 #include <vesc_can_bus_arduino.h>
 
+#define SERIAL_PRINT 0
+
 TFT_eSPI tft = TFT_eSPI(); 
 CAN can;             // get torque sensor data, throttle for now
 
@@ -16,12 +18,15 @@ CAN can;             // get torque sensor data, throttle for now
 #define TACH_GPIO 11
 #define TORQUE_ADC A0
 
+#define BUT_MID 18
+
 //207, 460
 #define TORQUE_MIN 512
 #define TORQUE_MAX 1024
 #define CURRENT_MAX (50*1000)
 bool print_realtime_data = true;
 long last_print_data;
+
 
 void setup() {
   Serial.begin(115200);
@@ -36,8 +41,9 @@ void setup() {
   digitalWrite(ENABLE_12V, HIGH);
   pinMode(TFT_BL,OUTPUT);
   digitalWrite(TFT_BL, HIGH);
+  pinMode(BUT_MID, INPUT);
   pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
-  //delay(3000);
+  delay(1000); // adding some delay to allow for serial print
   Serial.println("Let's begin..");
   if(can.initialize() == CAN_OK){
     tft.print("MCP2515 Initialized Successfully! ");
@@ -66,32 +72,34 @@ void loop() {
   static uint i = 0;
   static uint32_t cadence = 33000;
   static bool up_down=1;
+
   if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
   {
     can.spin();
     if (millis() - last_print_data > 100)
     {
       can.vesc_set_erpm(1, cadence); //set generator rpm
-      can.vesc_set_current(2, motorCurrent); //set generator rpm
+      can.vesc_set_current(2, 1000); //set generator rpm
 
       tft.setCursor(0,20);
       //tft.fillScreen(TFT_BLACK);
       tft.print(i,DEC); tft.print("   "); tft.print(torqueVal); tft.print("   \n");
-      tft.print("erpm = "); tft.print(can.erpm); tft.print("   \n");
-      tft.print("inpVoltage = "); tft.print(can.inpVoltage); tft.print("   \n");
-      tft.print("dutyCycleNow = "); tft.print(can.dutyCycleNow); tft.print("   \n");
-      tft.print("avgInputCurrent = "); tft.print(can.avgInputCurrent); tft.print("   \n");
-      tft.print("avgMotorCurrent = "); tft.print(can.avgMotorCurrent); tft.print("   \n");
-      tft.print("tempFET = "); tft.print(can.tempFET); tft.print("   \n");
-      tft.print("tempMotor = ");tft.print(can.tempMotor); tft.print("   \n");
-
-      Serial.print(can.erpm); Serial.print(',');
-      Serial.print(can.inpVoltage); Serial.print(',');
-      Serial.print(can.dutyCycleNow); Serial.print(',');
-      Serial.print(can.avgInputCurrent); Serial.print(',');
-      Serial.print(can.avgMotorCurrent); Serial.print(',');
-      Serial.print(can.tempFET); Serial.print(',');
-      Serial.println(can.tempMotor);
+      tft.print("erpm = "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
+      tft.print("inpVoltage = "); tft.print(can.vesc_data_1.inpVoltage); tft.print("   \n");
+      tft.print("dutyCycleNow = "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   \n");
+      tft.print("avgInputCurrent = "); tft.print(can.vesc_data_1.avgInputCurrent); tft.print("   \n");
+      tft.print("avgMotorCurrent = "); tft.print(can.vesc_data_1.avgMotorCurrent); tft.print("   \n");
+      tft.print("tempFET = "); tft.print(can.vesc_data_1.tempFET); tft.print("   \n");
+      tft.print("tempMotor = ");tft.print(can.vesc_data_1.tempMotor); tft.print("   \n");
+      if(SERIAL_PRINT){
+        Serial.print(can.vesc_data_1.erpm); Serial.print(',');
+        Serial.print(can.vesc_data_1.inpVoltage); Serial.print(',');
+        Serial.print(can.vesc_data_1.dutyCycleNow); Serial.print(',');
+        Serial.print(can.vesc_data_1.avgInputCurrent); Serial.print(',');
+        Serial.print(can.vesc_data_1.avgMotorCurrent); Serial.print(',');
+        Serial.print(can.vesc_data_1.tempFET); Serial.print(',');
+        Serial.println(can.vesc_data_1.tempMotor);
+      }
       digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
       last_print_data = millis();
     }

@@ -1,5 +1,15 @@
 #include <Arduino.h> //required for PD# definitions
 
+struct Vesc_data {
+  float inpVoltage;
+  float dutyCycleNow; 
+  float avgInputCurrent; 
+  float avgMotorCurrent;
+  float tempFET;
+  float tempMotor;
+  long erpm;
+};
+
 class CAN
 {
 
@@ -10,10 +20,10 @@ unsigned char len = 0;
 unsigned char rxBuf[8];
 char msgString[128];// Array to store serial string
 
+struct Vesc_data vesc_data;
 
-float inpVoltage, dutyCycleNow, avgInputCurrent, avgMotorCurrent, tempFET, tempMotor;
-long erpm;
-
+struct Vesc_data vesc_data_1;
+struct Vesc_data vesc_data_2;
 
 INT8U initialize();
 void spin();

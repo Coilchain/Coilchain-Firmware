@@ -13,30 +13,58 @@ INT8U CAN::initialize() {
 void CAN::spin() {
   get_frame();
 
-  if (rxId == 0x80000901) { //  if (rxId == 0x8000090A) {
-    dutyCycleNow = process_data_frame_vesc('D', rxBuf[6], rxBuf[7]);
-    avgMotorCurrent = process_data_frame_vesc('C', rxBuf[4], rxBuf[5]);
+  print_raw_can_data();  // uncomment to see raw can messages
+
+  if ((rxId & 0xFFFFFFFE) == 0x80000900) { //  if (rxId == 0x8000090A) {
+    vesc_data.dutyCycleNow = process_data_frame_vesc('D', rxBuf[6], rxBuf[7]);
+    vesc_data.avgMotorCurrent = process_data_frame_vesc('C', rxBuf[4], rxBuf[5]);
     unsigned char erpmvals[4];
     erpmvals[0] = rxBuf[3];
     erpmvals[1] = rxBuf[2];
     erpmvals[2] = rxBuf[1];
     erpmvals[3] = rxBuf[0];
-    erpm = *(long *)erpmvals;
+    vesc_data.erpm = *(long *)erpmvals;
 
+    if ((rxId & 0x1) == 0x1){
+      vesc_data_1.dutyCycleNow = vesc_data.dutyCycleNow;
+      vesc_data_1.avgMotorCurrent = vesc_data.avgMotorCurrent;
+      vesc_data_1.erpm = vesc_data.erpm;
+    }
+    else if ((rxId & 0x1) == 0x2){
+      vesc_data_2.dutyCycleNow = vesc_data.dutyCycleNow;
+      vesc_data_2.avgMotorCurrent = vesc_data.avgMotorCurrent;
+      vesc_data_2.erpm = vesc_data.erpm;
+    }
     //need to add in the rpm conversion function for 4 byte values
   }
-  if (rxId == 0x80001001) { //
-    tempFET = process_data_frame_vesc('F', rxBuf[0], rxBuf[1]);
-    tempMotor = process_data_frame_vesc('T', rxBuf[2], rxBuf[3]);
-    avgInputCurrent = process_data_frame_vesc('I', rxBuf[4], rxBuf[5]);
+  else if ((rxId & 0xFFFFFFFE) == 0x80001000) { //
+    vesc_data.tempFET = process_data_frame_vesc('F', rxBuf[0], rxBuf[1]);
+    vesc_data.tempMotor = process_data_frame_vesc('T', rxBuf[2], rxBuf[3]);
+    vesc_data.avgInputCurrent = process_data_frame_vesc('I', rxBuf[4], rxBuf[5]);
+
+    if ((rxId & 0x1) == 0x1){
+      vesc_data_1.tempFET = vesc_data.tempFET;
+      vesc_data_1.tempMotor = vesc_data.tempMotor;
+      vesc_data_1.avgInputCurrent = vesc_data.avgInputCurrent;
+    }
+    else if ((rxId & 0x1) == 0x2){
+      vesc_data_2.tempFET = vesc_data.tempFET;
+      vesc_data_2.tempMotor = vesc_data.tempMotor;
+      vesc_data_2.avgInputCurrent = vesc_data.avgInputCurrent;
+    }
   }
-  if (rxId == 0x80001B01) {
+  else if (rxId == 0x80001B00 + vesc_id) {
     char receivedByte[4], *p;
     sprintf(receivedByte, "%02X%02X", rxBuf[4], rxBuf[5]);
-    inpVoltage = hex2int(receivedByte) * 0.1;
-  }
+    vesc_data.inpVoltage = hex2int(receivedByte) * 0.1;
 
-  print_raw_can_data();  // uncomment to see raw can messages
+    if ((rxId & 0x1) == 0x1){
+      vesc_data_1.inpVoltage = vesc_data.inpVoltage;
+    }
+    else  if ((rxId & 0x1) == 0x2){
+      vesc_data_2.inpVoltage = vesc_data.inpVoltage;
+    }
+  }
 }
 
 void CAN::print_raw_can_data() {

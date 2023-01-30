@@ -6,6 +6,7 @@
 #include <SPI.h>
 #include <mcp_can.h>
 #include <vesc_can_bus_arduino.h>
+#include <math_helper.h>
 
 #define SERIAL_PRINT 0
 
@@ -20,10 +21,14 @@ CAN can;             // get torque sensor data, throttle for now
 
 #define BUT_MID 18
 
+// Max voltage and current input from generator
+#define CURRENT_MAX_IN 50
+#define VOLTAGE_MAX_IN 60
+
 //207, 460
 #define TORQUE_MIN 512
 #define TORQUE_MAX 1024
-#define CURRENT_MAX (50*1000)
+#define CURRENT_MAX_OUT (50*1000)
 bool print_realtime_data = true;
 long last_print_data;
 
@@ -61,29 +66,52 @@ void setup() {
 
 // the loop routine runs over and over again forever:
 void loop() {
-  uint32_t torqueVal = analogRead(TORQUE_ADC);
-  torqueVal = constrain(torqueVal, TORQUE_MIN, TORQUE_MAX);
-  uint32_t motorCurrent = map(torqueVal, TORQUE_MIN, TORQUE_MAX, 0, CURRENT_MAX);
+  
+  // Get the input torque from the crank torque sensor
+  uint32_t raw_measured_torque = analogRead(TORQUE_ADC);
+  float measured_torque = (float) raw_measured_torque;
+  measured_torque = mapf(raw_measured_torque, TORQUE_MIN, TORQUE_MAX, 0, 1);
+  measured_torque = constrainf(measured_torque, 0, 1);
+
+  // Get the power input from the generator 
+  float current_in_amp = can.vesc_data_1.avgInputCurrent / 1000;
+  float raw_elec_power_input = current_in_amp * (float) can.vesc_data_1.inpVoltage;
+  float elec_power_input = mapf(raw_elec_power_input, 0, CURRENT_MAX_IN * VOLTAGE_MAX_IN, 0, 1);
+  elec_power_input = constrainf(elec_power_input, 0, 1);
+
+  // Combine those two values to feed into the motor
+  uint32_t k_meca = 1;
+  uint32_t k_elec = 1;
+  float motor_power = k_meca * measured_torque + k_elec * elec_power_input;
+  motor_power = mapf(motor_power, 0, 2, 0, 1);
+  motor_power = constrainf(motor_power, 0, 1);
+
+  uint32_t motorCurrent = (uint32_t) (mapf(motor_power, 0, 1, 0, CURRENT_MAX_OUT));
+
   tft.setCursor(0,0);
-  tft.print(torqueVal); tft.print("        ");
+  tft.print(measured_torque); tft.print("        "); // blank space to clean previous higher value
   tft.setCursor(100,0);
+  tft.print(elec_power_input); tft.print("        ");
+  tft.setCursor(200,0);
   tft.print(motorCurrent); tft.print("        ");
+
   
   static uint i = 0;
   static uint32_t cadence = 33000;
   static bool up_down=1;
 
-  if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
+  // If CAN0_INT pin is low, read receive buffer
+  if(!digitalRead(CAN0_INT))
   {
     can.spin();
     if (millis() - last_print_data > 100)
     {
       can.vesc_set_erpm(1, cadence); //set generator rpm
-      can.vesc_set_current(2, 1000); //set generator rpm
+      can.vesc_set_current(2, motorCurrent); //set motor current
 
       tft.setCursor(0,20);
       //tft.fillScreen(TFT_BLACK);
-      tft.print(i,DEC); tft.print("   "); tft.print(torqueVal); tft.print("   \n");
+      tft.print(i,DEC); tft.print("   "); tft.print(measured_torque); tft.print("   \n");
       tft.print("erpm = "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
       tft.print("inpVoltage = "); tft.print(can.vesc_data_1.inpVoltage); tft.print("   \n");
       tft.print("dutyCycleNow = "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   \n");

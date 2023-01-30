@@ -37,9 +37,9 @@ void setup() {
   Serial.begin(115200);
   tft.init();
   tft.setRotation(1);
-  tft.setTextSize(1);
+  tft.setTextSize(2);
   tft.fillScreen(TFT_BLACK);
-  tft.setTextFont(2);
+  tft.setTextFont(1);
   // initialize the digital pin as an output.
   pinMode(LED_GREEN, OUTPUT);
   pinMode(ENABLE_12V, OUTPUT);
@@ -88,12 +88,20 @@ void loop() {
 
   uint32_t motorCurrent = (uint32_t) (mapf(motor_power, 0, 1, 0, CURRENT_MAX_OUT));
 
+  tft.setTextSize(2);
+
   tft.setCursor(0,0);
-  tft.print(measured_torque); tft.print("        "); // blank space to clean previous higher value
-  tft.setCursor(100,0);
-  tft.print(elec_power_input); tft.print("        ");
-  tft.setCursor(200,0);
-  tft.print(motorCurrent); tft.print("        ");
+  tft.print("SPD "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   ");
+  tft.setCursor(150,0);
+  tft.print("CAD "); tft.print(can.vesc_data_2.dutyCycleNow); tft.print("   ");
+
+
+  tft.setCursor(0,60);
+  tft.print(measured_torque); tft.print(" "); // blank space to clean previous higher value
+  tft.setCursor(100,60);
+  tft.print(elec_power_input); tft.print(" ");
+  tft.setCursor(200,60);
+  tft.print(motorCurrent); tft.print("  ");
 
   
   static uint i = 0;
@@ -111,6 +119,7 @@ void loop() {
 
       tft.setCursor(0,20);
       //tft.fillScreen(TFT_BLACK);
+      tft.setTextSize(1);
       tft.print(i,DEC); tft.print("   "); tft.print(measured_torque); tft.print("   \n");
       tft.print("erpm = "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
       tft.print("inpVoltage = "); tft.print(can.vesc_data_1.inpVoltage); tft.print("   \n");

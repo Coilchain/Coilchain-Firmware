@@ -28,7 +28,7 @@ CAN can;             // get torque sensor data, throttle for now
 //207, 460
 #define TORQUE_MIN 512
 #define TORQUE_MAX 1024
-#define CURRENT_MAX_OUT (50*1000)
+#define CURRENT_MAX_OUT (80*1000)
 bool print_realtime_data = true;
 long last_print_data;
 
@@ -80,8 +80,8 @@ void loop() {
   elec_power_input = constrainf(elec_power_input, 0, 1);
 
   // Combine those two values to feed into the motor
-  uint32_t k_meca = 1;
-  uint32_t k_elec = 1;
+  uint32_t k_meca = 8;
+  uint32_t k_elec = 8;
   float motor_power = k_meca * measured_torque + k_elec * elec_power_input;
   motor_power = mapf(motor_power, 0, 2, 0, 1);
   motor_power = constrainf(motor_power, 0, 1);
@@ -117,17 +117,18 @@ void loop() {
       can.vesc_set_erpm(1, cadence); //set generator rpm
       can.vesc_set_current(2, motorCurrent); //set motor current
 
-      tft.setCursor(0,20);
+      tft.setCursor(0,80);
       //tft.fillScreen(TFT_BLACK);
       tft.setTextSize(1);
       tft.print(i,DEC); tft.print("   "); tft.print(measured_torque); tft.print("   \n");
-      tft.print("erpm = "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
+      tft.print("erpm vesc 1= "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
       tft.print("inpVoltage = "); tft.print(can.vesc_data_1.inpVoltage); tft.print("   \n");
       tft.print("dutyCycleNow = "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   \n");
       tft.print("avgInputCurrent = "); tft.print(can.vesc_data_1.avgInputCurrent); tft.print("   \n");
       tft.print("avgMotorCurrent = "); tft.print(can.vesc_data_1.avgMotorCurrent); tft.print("   \n");
-      tft.print("tempFET = "); tft.print(can.vesc_data_1.tempFET); tft.print("   \n");
-      tft.print("tempMotor = ");tft.print(can.vesc_data_1.tempMotor); tft.print("   \n");
+
+      tft.print("erpm vesc 2= "); tft.print(can.vesc_data_2.erpm); tft.print("   \n");
+      tft.print("dutyCycleNow vesc 2= "); tft.print(can.vesc_data_2.dutyCycleNow); tft.print("   \n");
       if(SERIAL_PRINT){
         Serial.print(can.vesc_data_1.erpm); Serial.print(',');
         Serial.print(can.vesc_data_1.inpVoltage); Serial.print(',');

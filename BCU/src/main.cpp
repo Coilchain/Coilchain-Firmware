@@ -1,5 +1,5 @@
-
-#include <Arduino.h>
+#include "common_inc.h"
+#include "bcu_disp.h"
 
 //#include <TFT_eSPI_Setups/Setup60_RP2040_ST7735.h>
 #include <TFT_eSPI.h>
@@ -7,7 +7,6 @@
 #include <mcp_can.h>
 #include <vesc_can_bus_arduino.h>
 #include <math_helper.h>
-
 #define SERIAL_PRINT 0
 
 TFT_eSPI tft = TFT_eSPI(); 
@@ -33,6 +32,111 @@ bool print_realtime_data = true;
 long last_print_data;
 
 
+/*-------------------------------  BCU Display -----------------------------------
+a. How to run sample code
+1. Enable  OPEN_BCU_DISP_SAMPLE  macro define to use sample code.
+2. Before use this sample code, you need change button keys(BUT_UP......) pin map.
+3. Build and copy ulf2 firmware to your bcu board.
+
+b. How to use BcuDisp class.
+1). Declare BcuDisp class
+  |namespace|class type| variable  = |namespace|class type| [initial list]
+  BcuDisplay:: BcuDisp     bcu_disp =   BcuDisplay::BcuDisp(param1, param2)
+
+  >param1: TFT_eSPI class instance.
+  >param2: {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET}
+    BUT_UP: button up key.
+    BUT_DN: button down key.
+    BUT_MID: button middle key.
+    RISING: button isr action: RISING|CHANGE|LOW|HIGH|.....
+    TFT_BLACK: panel display background color.
+    TFT_WHITE: panel display font color.
+    TFT_VIOLET: selected params highlight.
+
+  // example
+  BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
+
+2) Init bcu display
+  bcu_disp.init();
+
+3) Update display value
+  bcu_disp.collect(param1, param2)
+  >param1: display item name:
+  "SPD"|"PWR"|"CAD"|"LVL"|"Po"|"Pi"|"To"|"Km"|"Ke"|"Kt"|"Lf"
+    "Po" short for "Power out"
+    "Pi" short for "Power in"
+    "To" short for "Torque out"
+  >param2: value (Todo: need to use template)
+  input value corresponding to display item .
+
+  //example
+  auto spd = a * b;
+  bcu_disp.collect("SPD", spd)
+
+4) Get parameters
+  bcu_disp.get(param1, param2)
+  >param1: display item name:
+  "SPD"|"PWR"|"CAD"|"LVL"|"Po"|"Pi"|"To"|"Km"|"Ke"|"Kt"|"Lf"
+    "Po" short for "Power out"
+    "Pi" short for "Power in"
+    "To" short for "Torque out"
+  >param2: value
+  sync parameter and return.
+  //example
+  auto Km_value = disp.get("Km")
+
+  5. Print message to panel.
+  bcu_disp.print()
+
+  print all message to panel.
+  
+  example:
+  bcu_disp.collect("SPD", 10)
+  .....
+  bcu_disp.print()
+
+By jarry.wu123456
+---------------------------------------------------------------------------------------*/
+
+// #define OPEN_BCU_DISP_SAMPLE
+#ifdef OPEN_BCU_DISP_SAMPLE
+
+// need to change to bcu board pin map
+#define BUT_UP    15            // Up key
+#define BUT_DN    3             // Down key
+#define BUT_MID   2             // Mid key
+
+BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
+
+void setup() {
+  Serial.begin(115200);
+  bcu_disp.init();
+  delay(100);
+}
+
+void loop() {
+  //generate data;
+  srand((int)time(0));
+  bcu_disp.collect("SPD",  rand()%100);
+  bcu_disp.collect("PWR",  rand()%100);
+  bcu_disp.collect("CAD",  rand()%100);
+  bcu_disp.collect("LVL",  rand()%100);
+  bcu_disp.collect("Po",   rand()%100);
+  bcu_disp.collect("Pi",   rand()%100);
+  bcu_disp.collect("To",   rand()%100);
+
+  //Get params
+  Serial.print(">> Sync params:");
+  Serial.print("Sync param [Km] "); Serial.print(bcu_disp.get("Km"));Serial.print("\n");
+  Serial.print("Sync param [Ke] "); Serial.print(bcu_disp.get("Ke"));Serial.print("\n");
+  Serial.print("Sync param [Kt] "); Serial.print(bcu_disp.get("Kt"));Serial.print("\n");
+  Serial.print("Sync value [Lf] "); Serial.print(bcu_disp.get("Lf"));Serial.print("\n");
+
+  //Print data
+  bcu_disp.print();
+  delay(200);
+}
+#else
 void setup() {
   Serial.begin(115200);
   tft.init();
@@ -56,7 +160,7 @@ void setup() {
   }
   else{
     tft.print("Error Initializing MCP2515.. ");
-    Serial.println("Error Initializing MCP2515...");  
+    Serial.println("Error Initializing MCP2515...");
     // digitalWrite(TFT_BL, LOW);
   }
   delay(500);
@@ -143,6 +247,7 @@ void loop() {
     }
   }
 }
+#endif
 
 /*
 

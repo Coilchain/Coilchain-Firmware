@@ -98,13 +98,13 @@ b. How to use BcuDisp class.
 By jarry.wu123456
 ---------------------------------------------------------------------------------------*/
 
-// #define OPEN_BCU_DISP_SAMPLE
+#define OPEN_BCU_DISP_SAMPLE
 #ifdef OPEN_BCU_DISP_SAMPLE
 
 // need to change to bcu board pin map
-#define BUT_UP    15            // Up key
-#define BUT_DN    3             // Down key
-#define BUT_MID   2             // Mid key
+#define BUT_UP    18            // Up key
+#define BUT_DN    19             // Down key
+#define BUT_MID   14             // Mid key
 
 BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
 

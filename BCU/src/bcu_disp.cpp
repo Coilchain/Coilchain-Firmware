@@ -17,18 +17,6 @@ static void print_node_ss(const BcuDispNode_t& disp_node) {
     return;
 }
 
-// HardCode, need to refix later.
-static inline std::string append_string(std::string ss) {
-    if(ss.size() == 1)
-        return("   " + ss);
-    if(ss.size() == 2)
-        return("  " + ss);
-    if(ss.size() == 3)
-        return(" " + ss);
-    if(ss.size() == 4)
-        return (ss);
-}
-
 void BcuDisp::init() noexcept {
 
     bcu_node_m.clear();
@@ -74,6 +62,23 @@ static inline int tft_write_safe(int x, int y, int w, int h) {
     return 0;
 }
 
+// HardCode, need to refix later.
+static inline std::string format_value(const float& value) {
+    std::stringstream buf;
+    buf.precision(1);
+    buf.setf(std::ios::fixed);
+    buf << value;
+
+    std::string ss =  buf.str();
+    
+    if(ss.size() == 3)
+        return("  " + ss);
+    if(ss.size() == 4)
+        return(" " + ss);
+    if(ss.size() == 5)
+        return(ss);
+}
+
 void BcuDisp::print_node(BcuDispNode_t& disp_node) noexcept {
 
     tft_esp.setCursor(disp_node.x, disp_node.y);
@@ -82,10 +87,10 @@ void BcuDisp::print_node(BcuDispNode_t& disp_node) noexcept {
     bool params_is_selected = disp_node.rank == (param_items + BCU_DISP_PARAMS_SHIFT) && disp_node.is_params;
 
     if(params_is_selected) {
-        if((disp_node.value + param_value) >= disp_node.limited_value)
+        if((disp_node.value + param_value * disp_node.step_ratio) >= disp_node.limited_value)
             disp_node.value = 0;
         else
-            disp_node.value += param_value;
+            disp_node.value += param_value * disp_node.step_ratio;
         param_value = 0;
 
         if(disp_node.rank != last_rank) {
@@ -95,8 +100,10 @@ void BcuDisp::print_node(BcuDispNode_t& disp_node) noexcept {
         last_rank =  disp_node.rank;
         tft_esp.setTextColor(bcu_disp_cfg.color_font, bcu_disp_cfg.color_highlight);
     }
-
-    std::string print_str = disp_node.node_name + ":" + append_string(std::to_string(disp_node.value)) + " " + disp_node.unit_name;
+    
+    //need transfer float to .0 format.
+    std::string disp_str = format_value(disp_node.value);
+    std::string print_str = disp_node.node_name + ":" + disp_str + " " + disp_node.unit_name;
 
     if(tft_write_safe(disp_node.x, disp_node.y,
                       print_str.length() * disp_node.font_size,

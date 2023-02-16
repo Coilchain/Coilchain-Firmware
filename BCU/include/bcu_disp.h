@@ -27,8 +27,9 @@ typedef struct BcuDispNode{
     bool is_params;
     int x;
     int y;
-    int value;
-    int limited_value;
+    float value;
+    float limited_value; 
+    float step_ratio;    // only used in parameter' setting
     bool need_loop;
     int rank;
     int font_size;
@@ -42,25 +43,27 @@ typedef struct BcuDispConfig{
     uint32_t color_bg;
     uint32_t color_font;
     uint32_t color_highlight;
+    float step = 1.0;
     //Add config here!
 } BcuDispConfig_t;
 
 static BcuDispNode_t disp_node_table[BCU_DISP_NUMS] = {
-    {"SPD", "kmh", false, 15, 10, 100, 100, false, 0,  3},
-    {"PWR", "w", false, 15, 40, 100, 1000, false, 1,  3},
-    {"CAD", "rpm", false, 15, 70, 100, 1000, false, 2, 3},
-    {"LVL", "s", false, 15, 100, 100, 2000,false, 3,   3},
-    {"Po", "w", false, 15, 160, 246, 1000, false, 4, 2},
-    {"Pi", "w", false, 15,180, 250, 100, false, 5, 2},
-    {"To", "nm", false, 15, 200, 122, 1000, false, 6, 2},
-    {"Km", "", true,  170, 140, 8, 20, true, 7, 3},
-    {"Ke", "", true,  170, 165, 5, 20, true, 8, 3},
-    {"Kt", "", true,  170, 190, 3, 20, true, 9, 3},
-    {"Lf", "", true,  170, 215, 10,20, true, 10, 3}
+    // {"node_name", "unit", x, y, value, l_value, step, need_loop?, rank, font_size}
+    {"SPD", "kmh", false, 15,  10,  100.0, 100.0,  0.1, false, 1,  3},
+    {"PWR", "w",   false, 15,  40,  100.0, 1000.0, 0.1, false, 1,  3},
+    {"CAD", "rpm", false, 15,  70,  100.0, 1000.0, 0.1, false, 2,  3},
+    {"LVL", "s",   false, 15,  100, 100.0, 2000.0, 0.1, false, 3,  3},
+    {"Po",  "w",   false, 15,  160, 246.0, 1000.0, 0.1, false, 4,  2},
+    {"Pi",  "w",   false, 15,  180, 250.0, 100.0,  0.1, false, 5,  2},
+    {"To",  "nm",  false, 15,  200, 122.0, 1000.0, 0.1, false, 6,  2},
+    {"Km",  "",    true,  155, 140, 8.0,   20.0,   1.0, true,  7,  3},
+    {"Ke",  "",    true,  155, 165, 5.0,   20.0,   0.2, true,  8,  3},
+    {"Kt",  "",    true,  155, 190, 3.0,   20.0,   1.0, true,  9,  3},
+    {"Lf",  "",    true,  155, 215, 10.0,  20.0,   1.0, true,  10, 3}
 };
 
-static int param_items = 0;
-static int param_value = 0;
+static int param_items = 0.0;
+static int param_value = 0.0;
 
 typedef std::pair<const std::string, BcuDispNode_t> DISP_NODE_TYPE;
 
@@ -72,9 +75,14 @@ public:
     void init();
     void print();
     void collect(const std::string node_name, const int& value) {
-        bcu_node_m[node_name].value =  std::min(bcu_node_m[node_name].limited_value, value);
+        bcu_node_m[node_name].value = static_cast<float>(value);
     };
-    int get(const std::string node_name) {
+
+    void collect(const std::string node_name, const float& value) {
+        bcu_node_m[node_name].value = value;
+    }
+
+    float get(const std::string node_name) {
         return bcu_node_m[node_name].value;
     };
 
@@ -85,6 +93,10 @@ public:
     void delete_node(const std::string name) {
         bcu_node_m.erase(name);
     };
+
+    void set_params_step(const std::string node_name, const float ratio) {
+         bcu_node_m[node_name].value = ratio;
+    }
 
     BcuDispConfig_t bcu_disp_cfg;
 
@@ -99,7 +111,7 @@ private:
     };
 
     static void notify_mid(){
-        param_value++;
+        param_value ++;
     };
 
     std::map<std::string, BcuDispNode_t> bcu_node_m;

@@ -4,6 +4,7 @@
 // C++ scope
 #include <Arduino.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <map>
 #include <vector>

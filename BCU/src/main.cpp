@@ -9,7 +9,7 @@
 #include <math_helper.h>
 #define SERIAL_PRINT 0
 
-TFT_eSPI tft = TFT_eSPI(); 
+TFT_eSPI tft = TFT_eSPI();
 CAN can;             // get torque sensor data, throttle for now
 
 #define CAN0_INT 8                              // Set INT to pin 2
@@ -18,7 +18,11 @@ CAN can;             // get torque sensor data, throttle for now
 #define TACH_GPIO 11
 #define TORQUE_ADC A0
 
-#define BUT_MID 18
+#define BUT_UP    18            // Up key
+#define BUT_DN    19             // Down key
+#define BUT_MID   14             // Mid key
+
+BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
 
 // Max voltage and current input from generator
 #define CURRENT_MAX_IN 50
@@ -31,183 +35,71 @@ CAN can;             // get torque sensor data, throttle for now
 bool print_realtime_data = true;
 long last_print_data;
 
-
-/*-------------------------------  BCU Display -----------------------------------
-a. How to run sample code
-1. Enable  OPEN_BCU_DISP_SAMPLE  macro define to use sample code.
-2. Before use this sample code, you need change button keys(BUT_UP......) pin map.
-3. Build and copy ulf2 firmware to your bcu board.
-
-b. How to use BcuDisp class.
-1). Declare BcuDisp class
-  |namespace|class type| variable  = |namespace|class type| [initial list]
-  BcuDisplay:: BcuDisp     bcu_disp =   BcuDisplay::BcuDisp(param1, param2)
-
-  >param1: TFT_eSPI class instance.
-  >param2: {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET}
-    BUT_UP: button up key.
-    BUT_DN: button down key.
-    BUT_MID: button middle key.
-    RISING: button isr action: RISING|CHANGE|LOW|HIGH|.....
-    TFT_BLACK: panel display background color.
-    TFT_WHITE: panel display font color.
-    TFT_VIOLET: selected params highlight.
-
-  // example
-  BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
-
-2) Init bcu display
-  bcu_disp.init();
-
-3) Update display value
-  bcu_disp.collect(param1, param2)
-  >param1: display item name:
-  "SPD"|"PWR"|"CAD"|"LVL"|"Po"|"Pi"|"To"|"Km"|"Ke"|"Kt"|"Lf"
-    "Po" short for "Power out"
-    "Pi" short for "Power in"
-    "To" short for "Torque out"
-  >param2: value (Todo: need to use template)
-  input value corresponding to display item .
-
-  //example
-  auto spd = a * b;
-  bcu_disp.collect("SPD", spd)
-
-4) Get parameters
-  bcu_disp.get(param1, param2)
-  >param1: display item name:
-  "SPD"|"PWR"|"CAD"|"LVL"|"Po"|"Pi"|"To"|"Km"|"Ke"|"Kt"|"Lf"
-    "Po" short for "Power out"
-    "Pi" short for "Power in"
-    "To" short for "Torque out"
-  >param2: value
-  sync parameter and return.
-  //example
-  auto Km_value = disp.get("Km")
-
-  5. Print message to panel.
-  bcu_disp.print()
-
-  print all message to panel.
-  
-  example:
-  bcu_disp.collect("SPD", 10)
-  .....
-  bcu_disp.print()
-
-By jarry.wu123456
----------------------------------------------------------------------------------------*/
-
-#define OPEN_BCU_DISP_SAMPLE
-#ifdef OPEN_BCU_DISP_SAMPLE
-
-// need to change to bcu board pin map
-#define BUT_UP    18            // Up key
-#define BUT_DN    19             // Down key
-#define BUT_MID   14             // Mid key
-
-BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
+//Bike configuration
+#define MOTOR_POLAR_PAIRS  42         // Polar pairs in motor.
+#define GEARBOX_RATIO     1.0         // GearBox ratios.
+#define WHEEL_DIAMETER    2.0         // Bike diameter.
+#define ADC2NM            1.0         // torque adc signal convert to nm depending on sensors.
 
 void setup() {
   Serial.begin(115200);
+  // init bcu display module.
   bcu_disp.init();
-  delay(100);
-}
-
-void loop() {
-  //generate data;
-  srand((int)time(0));
-  bcu_disp.collect("SPD",  rand()%100);
-  bcu_disp.collect("PWR",  rand()%100);
-  bcu_disp.collect("CAD",  rand()%100);
-  bcu_disp.collect("LVL",  rand()%100);
-  bcu_disp.collect("Po",   rand()%100);
-  bcu_disp.collect("Pi",   rand()%100);
-  bcu_disp.collect("To",   rand()%100);
-
-  //Get params
-  Serial.print(">> Sync params:");
-  Serial.print("Sync param [Km] "); Serial.print(bcu_disp.get("Km"));Serial.print("\n");
-  Serial.print("Sync param [Ke] "); Serial.print(bcu_disp.get("Ke"));Serial.print("\n");
-  Serial.print("Sync param [Kt] "); Serial.print(bcu_disp.get("Kt"));Serial.print("\n");
-  Serial.print("Sync value [Lf] "); Serial.print(bcu_disp.get("Lf"));Serial.print("\n");
-
-  //Print data
-  bcu_disp.print();
-  delay(200);
-}
-#else
-void setup() {
-  Serial.begin(115200);
-  tft.init();
-  tft.setRotation(1);
-  tft.setTextSize(2);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextFont(1);
-  // initialize the digital pin as an output.
+  Serial.println("bcu display init success");
+  // init can bus
   pinMode(LED_GREEN, OUTPUT);
   pinMode(ENABLE_12V, OUTPUT);
   digitalWrite(ENABLE_12V, HIGH);
-  pinMode(TFT_BL,OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
-  pinMode(BUT_MID, INPUT);
-  pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
-  delay(1000); // adding some delay to allow for serial print
-  Serial.println("Let's begin..");
-  if(can.initialize() == CAN_OK){
-    tft.print("MCP2515 Initialized Successfully! ");
+  pinMode(CAN0_INT, INPUT);
+
+  // need add connected signal state.
+  if(can.initialize() == CAN_OK)
     Serial.println("MCP2515 Initialized Successfully!");
-  }
-  else{
-    tft.print("Error Initializing MCP2515.. ");
+  else
     Serial.println("Error Initializing MCP2515...");
-    // digitalWrite(TFT_BL, LOW);
-  }
-  delay(500);
-  tft.fillScreen(TFT_BLACK);
-  
+
+  delay(200);
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
-  
   // Get the input torque from the crank torque sensor
   uint32_t raw_measured_torque = analogRead(TORQUE_ADC);
   float measured_torque = (float) raw_measured_torque;
   measured_torque = mapf(raw_measured_torque, TORQUE_MIN, TORQUE_MAX, 0, 1);
   measured_torque = constrainf(measured_torque, 0, 1);
 
-  // Get the power input from the generator 
+  // Get the power input from the generator
   float current_in_amp = can.vesc_data_1.avgInputCurrent / 1000;
   float raw_elec_power_input = current_in_amp * (float) can.vesc_data_1.inpVoltage;
   float elec_power_input = mapf(raw_elec_power_input, 0, CURRENT_MAX_IN * VOLTAGE_MAX_IN, 0, 1);
   elec_power_input = constrainf(elec_power_input, 0, 1);
 
   // Combine those two values to feed into the motor
-  uint32_t k_meca = 8;
-  uint32_t k_elec = 8;
+  auto k_meca = bcu_disp.get("Km");
+  auto k_elec = bcu_disp.get("Ke");
+  bcu_disp.collect("kt", k_meca+k_elec);
+
   float motor_power = k_meca * measured_torque + k_elec * elec_power_input;
   motor_power = mapf(motor_power, 0, 2, 0, 1);
   motor_power = constrainf(motor_power, 0, 1);
-
   uint32_t motorCurrent = (uint32_t) (mapf(motor_power, 0, 1, 0, CURRENT_MAX_OUT));
 
-  tft.setTextSize(2);
+  float cad  = can.vesc_data_1.erpm / MOTOR_POLAR_PAIRS;
+  float rpm2 = can.vesc_data_2.erpm / MOTOR_POLAR_PAIRS;
+  float spd = 0.06 * rpm2 * GEARBOX_RATIO * PI * WHEEL_DIAMETER;      // Kmh
+  float pwd = can.vesc_data_1.avgInputCurrent * can.vesc_data_1.inpVoltage;
 
-  tft.setCursor(0,0);
-  tft.print("SPD "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   ");
-  tft.setCursor(150,0);
-  tft.print("CAD "); tft.print(can.vesc_data_2.dutyCycleNow); tft.print("   ");
+  bcu_disp.collect("SPD", spd);
+  bcu_disp.collect("CAD", cad);
+  bcu_disp.collect("PWR", pwd);
 
+  // torque: now is analog input.
+  float torque  = measured_torque * ADC2NM;
+  bcu_disp.collect("To", measured_torque);
+  bcu_disp.collect("Pi", elec_power_input);
+  bcu_disp.collect("Po", motor_power);
 
-  tft.setCursor(0,60);
-  tft.print(measured_torque); tft.print(" "); // blank space to clean previous higher value
-  tft.setCursor(100,60);
-  tft.print(elec_power_input); tft.print(" ");
-  tft.setCursor(200,60);
-  tft.print(motorCurrent); tft.print("  ");
-
-  
   static uint i = 0;
   static uint32_t cadence = 33000;
   static bool up_down=1;
@@ -221,18 +113,6 @@ void loop() {
       can.vesc_set_erpm(1, cadence); //set generator rpm
       can.vesc_set_current(2, motorCurrent); //set motor current
 
-      tft.setCursor(0,80);
-      //tft.fillScreen(TFT_BLACK);
-      tft.setTextSize(1);
-      tft.print(i,DEC); tft.print("   "); tft.print(measured_torque); tft.print("   \n");
-      tft.print("erpm vesc 1= "); tft.print(can.vesc_data_1.erpm); tft.print("   \n");
-      tft.print("inpVoltage = "); tft.print(can.vesc_data_1.inpVoltage); tft.print("   \n");
-      tft.print("dutyCycleNow = "); tft.print(can.vesc_data_1.dutyCycleNow); tft.print("   \n");
-      tft.print("avgInputCurrent = "); tft.print(can.vesc_data_1.avgInputCurrent); tft.print("   \n");
-      tft.print("avgMotorCurrent = "); tft.print(can.vesc_data_1.avgMotorCurrent); tft.print("   \n");
-
-      tft.print("erpm vesc 2= "); tft.print(can.vesc_data_2.erpm); tft.print("   \n");
-      tft.print("dutyCycleNow vesc 2= "); tft.print(can.vesc_data_2.dutyCycleNow); tft.print("   \n");
       if(SERIAL_PRINT){
         Serial.print(can.vesc_data_1.erpm); Serial.print(',');
         Serial.print(can.vesc_data_1.inpVoltage); Serial.print(',');
@@ -244,10 +124,10 @@ void loop() {
       }
       digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
       last_print_data = millis();
+      bcu_disp.print();
     }
   }
 }
-#endif
 
 /*
 

@@ -28,7 +28,8 @@ typedef struct BcuDispNode{
     int x;
     int y;
     float value;
-    float limited_value; 
+    float value_min;
+    float value_max; 
     float step_ratio;    // only used in parameter' setting
     bool need_loop;
     int rank;
@@ -36,6 +37,8 @@ typedef struct BcuDispNode{
 } BcuDispNode_t;
 
 typedef struct BcuDispConfig{
+    pin_size_t button_sel;
+    PinStatus button_sel_isr_action;
     pin_size_t button_up;
     pin_size_t button_down;
     pin_size_t button_mid;
@@ -48,18 +51,18 @@ typedef struct BcuDispConfig{
 } BcuDispConfig_t;
 
 static BcuDispNode_t disp_node_table[BCU_DISP_NUMS] = {
-    // {"node_name", "unit", x, y, value, l_value, step, need_loop?, rank, font_size}
-    {"SPD", "kmh", false, 15,  10,  100.0, 100.0,  0.1, false, 1,  3},
-    {"PWR", "w",   false, 15,  40,  100.0, 1000.0, 0.1, false, 1,  3},
-    {"CAD", "rpm", false, 15,  70,  100.0, 1000.0, 0.1, false, 2,  3},
-    {"LVL", "s",   false, 15,  100, 100.0, 2000.0, 0.1, false, 3,  3},
-    {"Po",  "w",   false, 15,  160, 246.0, 1000.0, 0.1, false, 4,  2},
-    {"Pi",  "w",   false, 15,  180, 250.0, 100.0,  0.1, false, 5,  2},
-    {"To",  "nm",  false, 15,  200, 122.0, 1000.0, 0.1, false, 6,  2},
-    {"Km",  "",    true,  155, 140, 8.0,   50.0,   1.0, true,  7,  3},
-    {"Ke",  "",    true,  155, 165, 8.0,   50.0,   0.2, true,  8,  3},
-    {"Kt",  "",    true,  155, 190, 16.0,  100.0,   1.0, true,  9,  3},
-    {"Lf",  "",    true,  155, 215, 10.0,  20.0,   1.0, true,  10, 3}
+    // {"node_name", "unit", x, y, value, value_min, value_max, step, need_loop?, rank, font_size}
+    {"SPD", "Kmh", false, 15,  10,  100.0, 0.0, 100.0,  0.1,  false, 1,  3},
+    {"PWR", "W",   false, 15,  40,  100.0, 0.0, 1000.0, 0.1,  false, 1,  3},
+    {"CUR", "A",   false, 15,  70,  100.0, 0.0, 1000.0, 0.1,  false, 2,  3},
+    {"VBAT", "V",  false, 15,  100, 100.0, 0.0, 2000.0, 0.1,  false, 3,  3},
+    //{"Po",  "w",   false, 15,  160, 246.0, 0.0, 1000.0, 0.1,  false, 4,  2},
+    //{"Pi",  "w",   false, 15,  180, 250.0, 0.0, 100.0,  0.1,  false, 5,  2},
+    //{"To",  "nm",  false, 15,  200, 122.0, 0.0, 1000.0, 0.1,  false, 6,  2},
+    {"Km",  "",    true,  155, 140, 5.0,  0.0, 10.0,  1.0, true,  7,  3},
+    {"Ke",  "",    true,  155, 165, 0.0,   0.0, 50.0,   0.2,  true,  8,  3},
+    //{"Kt",  "",    true,  155, 190, 16.0,  0.0, 100.0,  1.0,  true,  9,  3},
+    //{"Lf",  "",    true,  155, 215, 10.0,  0.0, 20.0,   1.0,  true,  10, 3}
 };
 
 static int param_items = 0.0;
@@ -102,6 +105,11 @@ public:
 
 private:
     void print_node(BcuDispNode_t& disp_node);
+    
+    static void notify_sel() {
+        param_value --;
+    };
+
     static void notify_up() {
         param_items = (++param_items) > BCU_DISP_PARAMS_MAX ? BCU_DISP_PARAMS_KM: param_items;
     };

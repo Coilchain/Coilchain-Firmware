@@ -25,9 +25,12 @@ void BcuDisp::init() noexcept {
         this->add_node(disp_node_tmp);
     }
 
+    pinMode(bcu_disp_cfg.button_sel, INPUT);
     pinMode(bcu_disp_cfg.button_down, INPUT_PULLUP);
     pinMode(bcu_disp_cfg.button_up, INPUT_PULLUP);
     pinMode(bcu_disp_cfg.button_mid, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(bcu_disp_cfg.button_sel), &notify_sel,
+                                          bcu_disp_cfg.button_sel_isr_action);
     attachInterrupt(digitalPinToInterrupt(bcu_disp_cfg.button_down), &notify_up,
                                           bcu_disp_cfg.button_isr_action);
     attachInterrupt(digitalPinToInterrupt(bcu_disp_cfg.button_up), &notify_dn,
@@ -87,8 +90,10 @@ void BcuDisp::print_node(BcuDispNode_t& disp_node) noexcept {
     bool params_is_selected = disp_node.rank == (param_items + BCU_DISP_PARAMS_SHIFT) && disp_node.is_params;
 
     if(params_is_selected) {
-        if((disp_node.value + param_value * disp_node.step_ratio) >= disp_node.limited_value)
-            disp_node.value = 0;
+        if((disp_node.value + param_value * disp_node.step_ratio) >= disp_node.value_max)
+            disp_node.value = disp_node.value_max;
+        else if((disp_node.value + param_value * disp_node.step_ratio) <= disp_node.value_min)
+            disp_node.value = disp_node.value_min;
         else
             disp_node.value += param_value * disp_node.step_ratio;
         param_value = 0;

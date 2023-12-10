@@ -7,7 +7,13 @@
 #include <mcp_can.h>
 #include <vesc_can_bus_arduino.h>
 #include <math_helper.h>
-#define SERIAL_PRINT 0
+#define SERIAL_PRINT 1
+
+#include "led.cpp"
+#define LED_DOUT 29
+#define NUM_LEDS 14
+void Ring1Complete();
+NeoPatterns Ring1(NUM_LEDS, LED_DOUT, NEO_GRB + NEO_KHZ800, &Ring1Complete);
 
 TFT_eSPI tft = TFT_eSPI();
 CAN can;             // get torque sensor data, throttle for now
@@ -18,11 +24,12 @@ CAN can;             // get torque sensor data, throttle for now
 #define TACH_GPIO 11
 #define TORQUE_ADC A0
 
+#define BUT_SEL   17
 #define BUT_UP    18            // Up key
 #define BUT_DN    19             // Down key
 #define BUT_MID   14             // Mid key
 
-BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
+BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_SEL, FALLING, BUT_UP, BUT_DN,BUT_MID, RISING, TFT_BLACK, TFT_WHITE, TFT_VIOLET});
 
 // Max voltage and current input from generator
 #define CURRENT_MAX_IN 50
@@ -34,6 +41,7 @@ BcuDisplay::BcuDisp bcu_disp = BcuDisplay::BcuDisp(tft, {BUT_UP, BUT_DN,BUT_MID,
 #define CURRENT_MAX_OUT (80*1000)
 bool print_realtime_data = true;
 long last_print_data;
+long last_proccess_data;
 
 //Bike configuration
 #define MOTOR_POLAR_PAIRS  42         // Polar pairs in motor.
@@ -60,237 +68,120 @@ void setup() {
 
   delay(200);
 }
-
+void setup1() {
+  // Initialize all the pixelStrips
+  Ring1.begin();
+  // Kick off a pattern
+  Ring1.RainbowCycle(5);
+  delay(300);
+}
+void loop1(){
+  
+  // Update the rings.
+  Ring1.Update();
+}
 // the loop routine runs over and over again forever:
 void loop() {
-  // Get the input torque from the crank torque sensor
-  uint32_t raw_measured_torque = analogRead(TORQUE_ADC);
-  float measured_torque = (float) raw_measured_torque;
-  measured_torque = mapf(raw_measured_torque, TORQUE_MIN, TORQUE_MAX, 0, 1);
-  measured_torque = constrainf(measured_torque, 0, 1);
-
-  // Get the power input from the generator
-  float current_in_amp = can.vesc_data_1.avgInputCurrent / 1000;
-  float raw_elec_power_input = current_in_amp * (float) can.vesc_data_1.inpVoltage;
-  float elec_power_input = mapf(raw_elec_power_input, 0, CURRENT_MAX_IN * VOLTAGE_MAX_IN, 0, 1);
-  elec_power_input = constrainf(elec_power_input, 0, 1);
-
-  // Combine those two values to feed into the motor
-  auto k_meca = bcu_disp.get("Km");
-  auto k_elec = bcu_disp.get("Ke");
-  bcu_disp.collect("kt", k_meca+k_elec);
-
-  float motor_power = k_meca * measured_torque + k_elec * elec_power_input;
-  motor_power = mapf(motor_power, 0, 2, 0, 1);
-  motor_power = constrainf(motor_power, 0, 1);
-  uint32_t motorCurrent = (uint32_t) (mapf(motor_power, 0, 1, 0, CURRENT_MAX_OUT));
-
-  float cad  = can.vesc_data_1.erpm / MOTOR_POLAR_PAIRS;
-  float rpm2 = can.vesc_data_2.erpm / MOTOR_POLAR_PAIRS;
-  float spd = 0.06 * rpm2 * GEARBOX_RATIO * PI * WHEEL_DIAMETER;      // Kmh
-  float pwd = can.vesc_data_1.avgInputCurrent * can.vesc_data_1.inpVoltage;
-
-  bcu_disp.collect("SPD", spd);
-  bcu_disp.collect("CAD", cad);
-  bcu_disp.collect("PWR", pwd);
-
-  // torque: now is analog input.
-  float torque  = measured_torque * ADC2NM;
-  bcu_disp.collect("To", measured_torque);
-  bcu_disp.collect("Pi", elec_power_input);
-  bcu_disp.collect("Po", motor_power);
-
-  static uint i = 0;
-  static uint32_t cadence = 33000;
-  static bool up_down=1;
-
+  long time_now = millis();
+  static uint32_t motorCurrent = 0;
   // If CAN0_INT pin is low, read receive buffer
   if(!digitalRead(CAN0_INT))
   {
     can.spin();
-    if (millis() - last_print_data > 100)
-    {
-      can.vesc_set_erpm(1, cadence); //set generator rpm
-      can.vesc_set_current(2, motorCurrent); //set motor current
-
-      if(SERIAL_PRINT){
-        Serial.print(can.vesc_data_1.erpm); Serial.print(',');
-        Serial.print(can.vesc_data_1.inpVoltage); Serial.print(',');
-        Serial.print(can.vesc_data_1.dutyCycleNow); Serial.print(',');
-        Serial.print(can.vesc_data_1.avgInputCurrent); Serial.print(',');
-        Serial.print(can.vesc_data_1.avgMotorCurrent); Serial.print(',');
-        Serial.print(can.vesc_data_1.tempFET); Serial.print(',');
-        Serial.println(can.vesc_data_1.tempMotor);
-      }
-      digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
-      last_print_data = millis();
-      bcu_disp.print();
-    }
+    Serial.println("Spin!");
   }
+  
+  if (time_now - last_proccess_data > 100)
+  {
+    last_proccess_data = time_now;
+    // Get the input torque from the crank torque sensor
+    uint32_t raw_measured_torque = analogRead(TORQUE_ADC);
+    float measured_torque = (float) raw_measured_torque;
+    measured_torque = mapf(raw_measured_torque, TORQUE_MIN, TORQUE_MAX, 0, 1);
+    measured_torque = constrainf(measured_torque, 0, 1);
+
+    // Get the power input from the generator
+    float current_in_amp = can.vesc_data_1.avgInputCurrent / 1000;
+    float raw_elec_power_input = current_in_amp * (float) can.vesc_data_1.inpVoltage;
+    float elec_power_input = mapf(raw_elec_power_input, 0, CURRENT_MAX_IN * VOLTAGE_MAX_IN, 0, 1);
+    elec_power_input = constrainf(elec_power_input, 0, 1);
+
+    // Combine those two values to feed into the motor
+    auto k_meca = bcu_disp.get("Km");
+    auto k_elec = bcu_disp.get("Ke");
+    //bcu_disp.collect("kt", k_meca+k_elec);
+
+    float motor_power = k_meca * measured_torque + k_elec * elec_power_input;
+    motor_power = mapf(motor_power, 0, 2, 0, 1);
+    motor_power = constrainf(motor_power, 0, 1);
+    motorCurrent = (uint32_t) (mapf(motor_power, 0, 1, 0, CURRENT_MAX_OUT));
+
+    float cur  = motorCurrent; //float cad = can.vesc_data_1.erpm / MOTOR_POLAR_PAIRS;
+    float rpm2 = can.vesc_data_2.erpm / MOTOR_POLAR_PAIRS;
+    float spd = 0.06 * rpm2 * GEARBOX_RATIO * PI * WHEEL_DIAMETER;      // Kmh
+    float pwd = can.vesc_data_2.avgInputCurrent * can.vesc_data_2.inpVoltage;
+    float vbat = can.vesc_data_2.inpVoltage;
+    bcu_disp.collect("SPD", spd);
+    bcu_disp.collect("CUR", motor_power*80);
+    bcu_disp.collect("PWR", pwd);
+    bcu_disp.collect("VBAT", vbat);
+
+    // torque: now is analog input.
+    float torque  = measured_torque * ADC2NM;
+    //bcu_disp.collect("To", measured_torque);
+    //bcu_disp.collect("Pi", elec_power_input);
+    //bcu_disp.collect("Po", motor_power);
+
+    //can.vesc_set_erpm(1, cadence); //set generator rpm
+    can.vesc_set_current(2, motorCurrent); //set motor current
+  }
+  static uint loopctr = 0;
+  static uint i = 0;
+  static uint32_t cadence = 33000;
+  static bool up_down=1;
+  if (time_now - last_print_data > 500)
+  {
+
+    if(SERIAL_PRINT){
+      Serial.print(can.vesc_data_1.erpm); Serial.print(',');
+      Serial.print(can.vesc_data_1.inpVoltage); Serial.print(',');
+      Serial.print(can.vesc_data_1.dutyCycleNow); Serial.print(',');
+      Serial.print(can.vesc_data_1.avgInputCurrent); Serial.print(',');
+      Serial.print(can.vesc_data_1.avgMotorCurrent); Serial.print(',');
+      Serial.print(can.vesc_data_1.tempFET); Serial.print(',');
+      Serial.print(can.vesc_data_1.tempMotor);
+      Serial.print(can.vesc_data_2.erpm); Serial.print(',');
+      Serial.print(can.vesc_data_2.inpVoltage); Serial.print(',');
+      Serial.print(can.vesc_data_2.dutyCycleNow); Serial.print(',');
+      Serial.print(can.vesc_data_2.avgInputCurrent); Serial.print(',');
+      Serial.print(can.vesc_data_2.avgMotorCurrent); Serial.print(',');
+      Serial.print(can.vesc_data_2.tempFET); Serial.print(',');
+      Serial.print(can.vesc_data_2.tempMotor);
+      Serial.println("");
+    }
+    digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
+    last_print_data = time_now;
+    
+    //Serial.print(millis()); Serial.print(',');
+    //Serial.print(micros()); Serial.print(',');
+    bcu_disp.print();
+    
+    //Serial.print(loopctr); Serial.print(',');
+    //Serial.print(millis()-time_now);
+    //Serial.println("");
+    loopctr=0;
+  }
+  else
+  {
+    loopctr++;
+  }
+  
 }
 
-/*
-
-  tft.setTextColor(TFT_WHITE);
-  int pixel_height = 30;
-  tft.setTextFont(1);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=8;
-  tft.print("Hello World! 1");
-  tft.setTextFont(2);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=16;
-  tft.print("Hello World! 2");
-  tft.setTextFont(4);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=26;
-  tft.print("Hello World! 4");
-  tft.setTextFont(6);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=48;
-  tft.setTextColor(TFT_RED);
-  tft.print("6");
-  tft.setTextFont(7);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=48;
-  tft.setTextColor(TFT_GREEN);
-  tft.print("7");
-  tft.setTextFont(8);
-  tft.setCursor(10,pixel_height);
-  pixel_height+=75;
-  tft.setTextColor(TFT_BLUE);
-  tft.print("8");
-  */
-
-/*
-#include <ACAN2515.h>
-
-//——————————————————————————————————————————————————————————————————————————————
-// The Pico has two SPI peripherals, SPI and SPI1. Either (or both) can be used.
-// The are no default pin assignments so they must be set explicitly.
-// Testing was done with Earle Philhower's arduino-pico core:
-// https://github.com/earlephilhower/arduino-pico
-//——————————————————————————————————————————————————————————————————————————————
-
-static const byte MCP2515_SCK  = 14 ; // SCK input of MCP2515 (adapt to your design)
-static const byte MCP2515_MOSI = 15 ; // SDI input of MCP2515 (adapt to your design)
-static const byte MCP2515_MISO = 12 ; // SDO output of MCP2515 (adapt to your design)
-
-static const byte MCP2515_CS   = 13 ;  // CS input of MCP2515 (adapt to your design)
-static const byte MCP2515_INT  = 11 ;  // INT output of MCP2515 (adapt to your design)
-
-//——————————————————————————————————————————————————————————————————————————————
-//  MCP2515 Driver object
-//——————————————————————————————————————————————————————————————————————————————
-
-ACAN2515 can (MCP2515_CS, SPI1, MCP2515_INT) ;
-
-//——————————————————————————————————————————————————————————————————————————————
-//  MCP2515 Quartz: adapt to your design
-//——————————————————————————————————————————————————————————————————————————————
-
-static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
-
-//——————————————————————————————————————————————————————————————————————————————
-//   SETUP
-//——————————————————————————————————————————————————————————————————————————————
-
-void setup () {
-  //--- Switch on builtin led
-  pinMode (LED_GREEN, OUTPUT) ;
-  digitalWrite (LED_GREEN, HIGH) ;
-  //--- Start serial
-  Serial.begin (115200) ;
-  //--- Wait for serial (blink led at 10 Hz during waiting)
-  while (!Serial) {
-    delay (50) ;
-    digitalWrite (LED_GREEN, !digitalRead (LED_GREEN)) ;
-  }
-  //--- There are no default SPI1 pins so they must be explicitly assigned
-  SPI1.setSCK (MCP2515_SCK);
-  SPI1.setTX (MCP2515_MOSI);
-  SPI1.setRX (MCP2515_MISO);
-  SPI1.setCS (MCP2515_CS);
-  //--- Begin SPI1
-  SPI1.begin () ;
-  //--- Configure ACAN2515
-  Serial.println ("Configure ACAN2515") ;
-  ACAN2515Settings settings (QUARTZ_FREQUENCY, 500UL * 1000UL) ; // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode ; // Select loopback mode
-  const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
-  if (errorCode == 0) {
-    Serial.print ("Bit Rate prescaler: ") ;
-    Serial.println (settings.mBitRatePrescaler) ;
-    Serial.print ("Propagation Segment: ") ;
-    Serial.println (settings.mPropagationSegment) ;
-    Serial.print ("Phase segment 1: ") ;
-    Serial.println (settings.mPhaseSegment1) ;
-    Serial.print ("Phase segment 2: ") ;
-    Serial.println (settings.mPhaseSegment2) ;
-    Serial.print ("SJW: ") ;
-    Serial.println (settings.mSJW) ;
-    Serial.print ("Triple Sampling: ") ;
-    Serial.println (settings.mTripleSampling ? "yes" : "no") ;
-    Serial.print ("Actual bit rate: ") ;
-    Serial.print (settings.actualBitRate ()) ;
-    Serial.println (" bit/s") ;
-    Serial.print ("Exact bit rate ? ") ;
-    Serial.println (settings.exactBitRate () ? "yes" : "no") ;
-    Serial.print ("Sample point: ") ;
-    Serial.print (settings.samplePointFromBitStart ()) ;
-    Serial.println ("%") ;
-  }else{
-    Serial.print ("Configuration error 0x") ;
-    Serial.println (errorCode, HEX) ;
-  }
+// Ring1 Completion Callback
+void Ring1Complete()
+{
+        // Alternate color-wipe patterns with Ring2
+        //Ring1.Color1 = Ring1.Wheel(random(255));
+        //Ring1.Interval = 100;
 }
-
-//----------------------------------------------------------------------------------------------------------------------
-
-static uint32_t gBlinkLedDate = 0 ;
-static uint32_t gReceivedFrameCount = 0 ;
-static uint32_t gSentFrameCount = 0 ;
-
-//——————————————————————————————————————————————————————————————————————————————
-
-void loop () {
-  CANMessage frame ;
-  if (gBlinkLedDate < millis ()) {
-    gBlinkLedDate += 2000 ;
-    digitalWrite (LED_GREEN, !digitalRead (LED_GREEN)) ;
-    frame.ext = true ;
-    frame.id = 0x1FFFFFFF ;
-    frame.len = 8 ;
-    frame.data [0] = 0x11 ;
-    frame.data [1] = 0x22 ;
-    frame.data [2] = 0x33 ;
-    frame.data [3] = 0x44 ;
-    frame.data [4] = 0x55 ;
-    frame.data [5] = 0x66 ;
-    frame.data [6] = 0x77 ;
-    frame.data [7] = 0x88 ;
-    const bool ok = can.tryToSend (frame) ;
-    if (ok) {
-      gSentFrameCount += 1 ;
-      Serial.print ("Sent: ") ;
-      Serial.println (gSentFrameCount) ;
-    }else{
-      Serial.println ("Send failure") ;
-    }
-  }
-  if (can.receive (frame)) {
-    gReceivedFrameCount ++ ;
-    Serial.print ("  id: ");Serial.println (frame.id,HEX);
-    Serial.print ("  ext: ");Serial.println (frame.ext);
-    Serial.print ("  rtr: ");Serial.println (frame.rtr);
-    Serial.print ("  len: ");Serial.println (frame.len);
-    Serial.print ("  data: ");
-    for(int x=0;x<frame.len;x++) {
-      Serial.print (frame.data[x],HEX); Serial.print(":");
-    }
-    Serial.println ("");
-    Serial.print ("Received: ") ;
-    Serial.println (gReceivedFrameCount) ;
-  }
-}
-*/

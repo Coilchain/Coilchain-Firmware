@@ -20,10 +20,33 @@ unsigned char len = 0;
 unsigned char rxBuf[8];
 char msgString[128];// Array to store serial string
 
-struct Vesc_data vesc_data;
-
-struct Vesc_data vesc_data_1;
-struct Vesc_data vesc_data_2;
+struct Vesc_data vesc_data = {
+  0.0, // inpVoltage;
+  0.0, // dutyCycleNow; 
+  0.0, // avgInputCurrent; 
+  0.0, // avgMotorCurrent;
+  0.0, // tempFET;
+  0.0, // tempMotor;
+  0, // erpm;
+};
+struct Vesc_data vesc_data_1 = {
+  0.0, // inpVoltage;
+  0.0, // dutyCycleNow; 
+  0.0, // avgInputCurrent; 
+  0.0, // avgMotorCurrent;
+  0.0, // tempFET;
+  0.0, // tempMotor;
+  0, // erpm;
+};
+struct Vesc_data vesc_data_2 = {
+  12.3, // inpVoltage;
+  0.0, // dutyCycleNow; 
+  2.0, // avgInputCurrent; 
+  0.0, // avgMotorCurrent;
+  0.0, // tempFET;
+  0.0, // tempMotor;
+  0, // erpm;
+};
 
 INT8U initialize();
 void spin();

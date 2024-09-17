@@ -31,8 +31,9 @@ class NeoPatterns : public Adafruit_NeoPixel
     }
     
     // Update the pattern
-    void Update()
+    void Update(bool brake, byte brightness = 255)
     {
+        setBrightness(brightness);
         unsigned long time_now = millis();
         unsigned long testme=micros();
         if((time_now - lastUpdate) > Interval) // time to update
@@ -41,7 +42,7 @@ class NeoPatterns : public Adafruit_NeoPixel
             switch(ActivePattern)
             {
                 case RAINBOW_CYCLE:
-                    RainbowCycleUpdate();
+                    RainbowCycleUpdate(brake);
                     break;
                 case THEATER_CHASE:
                     TheaterChaseUpdate();
@@ -116,11 +117,14 @@ class NeoPatterns : public Adafruit_NeoPixel
     }
     
     // Update the Rainbow Cycle Pattern
-    void RainbowCycleUpdate()
+    void RainbowCycleUpdate(bool brake)
     {
         for(int i=0; i< numPixels(); i++)
         {
-            setPixelColor(i, Wheel(((i * 256 / numPixels()) + Index) & 255));
+            if(brake == 0 || i < 35)
+                setPixelColor(i, Wheel(((i * 256 / numPixels()) + Index) & 255));
+            else
+                setPixelColor(i, Wheel(0));
         }
         show();
         Increment();

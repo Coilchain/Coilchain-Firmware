@@ -11,7 +11,7 @@
 
 #include "led.cpp"
 #define LED_DOUT 29
-#define NUM_LEDS 14
+#define NUM_LEDS 60
 void Ring1Complete();
 NeoPatterns Ring1(NUM_LEDS, LED_DOUT, NEO_GRB + NEO_KHZ800, &Ring1Complete);
 
@@ -72,13 +72,23 @@ void setup1() {
   // Initialize all the pixelStrips
   Ring1.begin();
   // Kick off a pattern
-  Ring1.RainbowCycle(5);
+  Ring1.RainbowCycle(10, REVERSE);
+  //Ring1.TheaterChase(Ring1.Color(0,255,0), Ring1.Color(255,0,0), 100, REVERSE);
   delay(300);
 }
 void loop1(){
-  
+  static bool brake = 0;
+  static unsigned long brakeTime = 0;
   // Update the rings.
-  Ring1.Update();
+  Ring1.Update(brake, 100);
+
+  unsigned long currentTime = millis();
+  if( (currentTime - brakeTime) > 500)
+  {
+    brakeTime = currentTime;
+    brake = !brake;
+  }
+
 }
 // the loop routine runs over and over again forever:
 void loop() {
